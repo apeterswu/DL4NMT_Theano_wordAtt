@@ -11,9 +11,9 @@ git clone https://github.com/Lasagne/Lasagne.git
 cd Lasagne
 pip install .
 cd ../DL4NMT_Theano
-mkdir -p data/train data/test data/dev data/dic model/complete
-mkdir -p log/complete translated/complete
-# copy data from other nodes to here...
+mkdir -p data/train data/test data/dev data/dic 
+mkdir -p log/complete translated/complete model/complete
+ copy data from other nodes to here...
 ```
 
 **NOTE**：在node（包括GCR）上跑job之前，请确保code是最新的，在Project根目录下运行`git pull`。
