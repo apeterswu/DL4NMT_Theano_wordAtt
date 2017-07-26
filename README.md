@@ -6,7 +6,7 @@ Deep neural machine translation (NMT) model, implemented in Theano.
 
 ```bash
 
-git clone https://github.com/fyabc/DL4NMT_Theano.git
+git clone https://github.com/apeterswu/DL4NMT_Theano_wordAtt.git
 git clone https://github.com/Lasagne/Lasagne.git
 cd Lasagne
 pip install .
