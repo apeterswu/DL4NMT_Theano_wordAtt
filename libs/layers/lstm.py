@@ -332,8 +332,8 @@ def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimc
         # word context to LSTM
         params[_p(prefix, 'Wc_b', layer_id)] = normal_weight(dimctx_b, dim * 4)  # C_b
         if gated_att:
-            params[_p(prefix, 'Wc_o')] = normal_weight(dimctx, dim)  # C_o
-            params[_p(prefix, 'Wc_o_b')] = normal_weight(dimctx_b, dim)  # C_o_b
+            params[_p(prefix, 'Wc_o', layer_id)] = normal_weight(dimctx, dim)  # C_o
+            params[_p(prefix, 'Wc_o_b', layer_id)] = normal_weight(dimctx_b, dim)  # C_o_b
     else:
         params[_p(prefix, 'W', layer_id)] = np.stack([np.concatenate([
             normal_weight(nin, dim),
@@ -438,7 +438,7 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, w
     else:
         state_below = T.dot(state_below, P[_p(prefix, 'W', layer_id)]) + P[_p(prefix, 'b', layer_id)]
         if gated_att:
-            state_below_o = T.dot(state_below, P[_p(prefix, 'W_o', layer_id)]) + P[_p(prefix, 'b_o')]
+            state_below_o = T.dot(state_below, P[_p(prefix, 'W_o', layer_id)]) + P[_p(prefix, 'b_o', layer_id)]
 
     # add word context into step_attention calculation
     def _one_step_attention_slice(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl):
