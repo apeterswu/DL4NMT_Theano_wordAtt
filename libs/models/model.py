@@ -629,7 +629,7 @@ class NMTModel(object):
         print('Building f_next..', end='')
         inps = [y, ctx, word_ctx, init_state]
         if batch_mode:
-            inps.insert(2, x_mask)
+            inps.insert(3, x_mask)
         outs = [next_probs, next_sample, hiddens_without_dropout]
         if 'lstm' in unit:
             inps.append(init_memory)
