@@ -48,6 +48,12 @@ def param_init_lstm(O, params, prefix='lstm', nin=None, dim=None, **kwargs):
                 normal_weight(context_dim, dim),
                 normal_weight(context_dim, dim),
             ], axis=1)
+            params[_p(prefix, 'Wc_b', layer_id)] = np.concatenate([
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
+            ], axis=1)
     else:
         params[_p(prefix, 'W', layer_id)] = np.stack([np.concatenate([
             normal_weight(nin, dim),
@@ -71,12 +77,6 @@ def param_init_lstm(O, params, prefix='lstm', nin=None, dim=None, **kwargs):
                 normal_weight(context_dim, dim),
                 normal_weight(context_dim, dim),
                 normal_weight(context_dim, dim),
-            ], axis=1) for _ in xrange(unit_size)], axis=0)
-            params[_p(prefix, 'Wc_b', layer_id)] = np.stack([np.concatenate([
-                normal_weight(context_dim_b, dim),
-                normal_weight(context_dim_b, dim),
-                normal_weight(context_dim_b, dim),
-                normal_weight(context_dim_b, dim),
             ], axis=1) for _ in xrange(unit_size)], axis=0)
 
     return params
