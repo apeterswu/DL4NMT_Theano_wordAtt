@@ -99,7 +99,7 @@ class ParameterInitializer(object):
             for layer_id in xrange(attention_layer_id + 1, n_layers):
                 np_parameters = get_init(unit)(
                     self.O, np_parameters, prefix='decoder', nin=self.O['dim'],
-                    dim=self.O['dim'], layer_id=layer_id, context_dim=context_dim, dimctx_b=context_dim_b, unit_size=unit_size)
+                    dim=self.O['dim'], layer_id=layer_id, context_dim=context_dim, context_dim_b=context_dim_b, unit_size=unit_size)
 
         return np_parameters
 

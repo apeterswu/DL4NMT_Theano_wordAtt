@@ -20,6 +20,7 @@ def param_init_lstm(O, params, prefix='lstm', nin=None, dim=None, **kwargs):
 
     layer_id = kwargs.pop('layer_id', 0)
     context_dim = kwargs.pop('context_dim', None)
+    context_dim_b = kwargs.pop('context_dim_b', None)
     multi = 'multi' in O.get('unit', 'lstm')
     unit_size = kwargs.pop('unit_size', O.get('unit_size', 2))
 
@@ -70,6 +71,12 @@ def param_init_lstm(O, params, prefix='lstm', nin=None, dim=None, **kwargs):
                 normal_weight(context_dim, dim),
                 normal_weight(context_dim, dim),
                 normal_weight(context_dim, dim),
+            ], axis=1) for _ in xrange(unit_size)], axis=0)
+            params[_p(prefix, 'Wc_b', layer_id)] = np.stack([np.concatenate([
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
+                normal_weight(context_dim_b, dim),
             ], axis=1) for _ in xrange(unit_size)], axis=0)
 
     return params
