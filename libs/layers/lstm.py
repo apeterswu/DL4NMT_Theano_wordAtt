@@ -503,7 +503,7 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, w
         return h2, c2, ctx_, word_ctx_, alpha.T, beta.T
 
     def _step_slice_gate_att(mask_, x_, x_o_,
-                             h_, c_, ctx_, ctx_b, alpha_, beta_,
+                             h_, c_, ctx_, ctx_b, alpha_, beta_, att_gate,
                              projected_context_, projected_word_context_, context_, word_context_,
                              U, Wc, W_comb_att, U_att, c_tt, U_nl, b_nl,
                              Wc_b, W_comb_att_b, U_att_b, c_tt_b, U_o, Wc_o, Wc_o_b, U_nl_o, b_nl_o):
