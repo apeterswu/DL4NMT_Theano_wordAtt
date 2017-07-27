@@ -105,7 +105,7 @@ def _word_attention(h1, projcted_word_context_, word_context_, W_comb_att_b, U_a
 
     beta = T.dot(pctx_word__, U_att_b) + c_tt_b
     beta = beta.reshape([beta.shape[0], beta.shape[1]])
-    beta = beta.exp(beta)
+    beta = T.exp(beta)
     if context_mask:
         beta = beta * context_mask
     beta = beta / beta.sum(0, keepdims=True)
