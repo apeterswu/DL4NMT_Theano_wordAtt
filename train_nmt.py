@@ -105,6 +105,8 @@ def main():
     # TODO: rename this option to decoder_unit_size in future
     parser.add_argument('--cond_unit_size', action='store', default=2, type=int, dest='cond_unit_size',
                         help='Number of decoder unit size (will rename in future), default is %(default)s')
+    parser.add_argument('--gated_att', action='store_true', default=False, dest='gated_att',
+                        help='Whether has gate controller between context and word context.')
     parser.add_argument('--clip', action='store', metavar='clip', dest='clip', type=float, default=1.0,
                         help='Gradient clip rate, default is 1.0.')
     parser.add_argument('--manual', action='store_false', dest='auto', default=True,
@@ -115,7 +117,7 @@ def main():
                         default=-1, help='The learning rate discount frequency, default is -1')
 
     parser.add_argument('--distribute', action = 'store', metavar ='type', dest = 'dist_type', type = str, default= None,
-                        help = 'The distribution version, default is None (singe GPU mode), candiates are "mv", "mpi_reduce"')
+                        help='The distribution version, default is None (singe GPU mode), candiates are "mv", "mpi_reduce"')
     parser.add_argument('--nccl', action="store_true", default=False, dest='nccl',
                         help='Use NCCL in distributed mode, default to False, set to True')
     parser.add_argument('--clip_grads_local', action="store_true", default=False, dest='clip_grads_local',
@@ -257,6 +259,7 @@ def main():
 
         unit_size=args.unit_size,
         cond_unit_size=args.cond_unit_size,
+        gated_att=args.gated_att,
 
         given_imm=True,
         dump_imm=True,

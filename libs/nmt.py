@@ -124,6 +124,7 @@ def train(dim_word=100,  # word vector dimensionality
 
           unit_size=2,
           cond_unit_size=2,
+          gated_att=False,
 
           given_imm=False,
           dump_imm=False,
@@ -134,7 +135,7 @@ def train(dim_word=100,  # word vector dimensionality
           task='en-fr',
 
           fine_tune_patience=8,
-          nccl = False,
+          nccl=False,
           src_vocab_map_file = None,
           tgt_vocab_map_file = None,
 
@@ -234,7 +235,7 @@ Start Time = {}
     # Reload parameters
     if reload_ and os.path.exists(preload):
         print 'Reloading model parameters'
-        load_params(preload, params, src_map_file = src_vocab_map_file, tgt_map_file = tgt_vocab_map_file)
+        load_params(preload, params, src_map_file=src_vocab_map_file, tgt_map_file = tgt_vocab_map_file)
     sys.stdout.flush()
 
     # Given embedding
@@ -288,9 +289,9 @@ Start Time = {}
 
     clip_shared = theano.shared(np.array(clip_c, dtype=fX), name='clip_shared')
 
-    if dist_type != 'mpi_reduce': #build grads clip into computational graph
+    if dist_type != 'mpi_reduce':  # build grads clip into computational graph
         grads, g2 = clip_grad_remove_nan(grads, clip_shared, model.P)
-    else: #do the grads clip after gradients aggregation
+    else:  # do the grads clip after gradients aggregation
         g2 = None
 
     # compile the optimizer, the actual computational graph is compiled here
@@ -312,7 +313,7 @@ Start Time = {}
     if dist_type == 'mv':
         mv.barrier()
     elif dist_type == 'mpi_reduce':
-        #create receive buffers for mpi allreduce
+        # create receive buffers for mpi allreduce
         rec_grads = [np.zeros_like(p.get_value()) for p in model.P.itervalues()]
 
     estop = False
@@ -363,7 +364,7 @@ Start Time = {}
             mpi_communicator.Barrier()
 
         for i, (x, y) in enumerate(text_iterator):
-            if eidx == start_epoch and i < pass_batches: #ignore the first several batches when reload
+            if eidx == start_epoch and i < pass_batches:  # ignore the first several batches when reload
                 continue
             n_samples += len(x)
             uidx += 1
@@ -416,7 +417,7 @@ Start Time = {}
                 clip_shared.set_value(clip_shared.get_value() * 0.9)
                 message('Discount clip value to {:.4f} at iteration {}'.format(clip_shared.get_value(), uidx))
 
-                #reload the best saved model
+                # reload the best saved model
                 if not os.path.exists(saveto):
                     message('No saved model at {}. Task exited'.format(saveto))
                     return 1., 1., 1.
@@ -472,7 +473,7 @@ Start Time = {}
                     if valid_cost < best_valid_cost:
                         bad_counter = 0
                         best_valid_cost = valid_cost
-                        #dump the best model so far, including the immediate file
+                        # dump the best model so far, including the immediate file
                         if worker_id == 0:
                             message('Dump the the best model so far at uidx {}'.format(uidx))
                             model.save_model(saveto, history_errs)
