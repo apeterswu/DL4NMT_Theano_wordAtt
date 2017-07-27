@@ -544,6 +544,7 @@ class NMTModel(object):
         get_gates = kwargs.pop('get_gates', False)
 
         unit = self.O['unit']
+        gated_att = self.O['gated_att']
 
         x = T.matrix('x', dtype='int64')
         xr = x[::-1]
@@ -564,6 +565,7 @@ class NMTModel(object):
             x_mask if batch_mode else None, xr_mask if batch_mode else None,
             dropout_params=None,
         )
+        word_ctx = src_embedding
 
         # Get the input for decoder rnn initializer mlp
         ctx_mean = self.get_context_mean(ctx, x_mask) if batch_mode else ctx.mean(0)
@@ -573,7 +575,7 @@ class NMTModel(object):
         inps = [x]
         if batch_mode:
             inps.append(x_mask)
-        outs = [init_state, ctx]
+        outs = [init_state, ctx, word_ctx]
         f_init = theano.function(inps, outs, name='f_init', profile=profile)
         print('Done')
 
@@ -588,8 +590,8 @@ class NMTModel(object):
                        self.P['Wemb_dec'][y])
 
         # Apply one step of conditional gru with attention
-        hidden_decoder, context_decoder, _, kw_ret = self.decoder(
-            emb, y_mask=None, init_state=init_state, context=ctx,
+        hidden_decoder, context_decoder, word_context_decoder, _, _, kw_ret = self.decoder(
+            emb, y_mask=None, init_state=init_state, context=ctx, word_context=word_ctx,
             x_mask=x_mask if batch_mode else None,
             dropout_params=None, one_step=True, init_memory=init_memory,
             get_gates=get_gates,
@@ -601,13 +603,19 @@ class NMTModel(object):
         hiddens_without_dropout = T.stack(kw_ret['hiddens_without_dropout'])
         if 'lstm' in unit:
             memory_out = T.stack(kw_ret['memory_outputs'])
-
+        if gated_att:
+            out_gate = self.output_gate(hidden_decoder, context_decoder, word_context_decoder, emb,
+                                        prefix='out_gate')
         logit_lstm = self.feed_forward(hidden_decoder, prefix='ff_logit_lstm', activation=linear)
         logit_prev = self.feed_forward(emb, prefix='ff_logit_prev', activation=linear)
         logit_ctx = self.feed_forward(context_decoder, prefix='ff_logit_ctx', activation=linear)
-        logit = T.tanh(logit_lstm + logit_prev + logit_ctx)
+        logit_ctx_b = self.feed_forward(word_context_decoder, prefix='ff_logit_ctx_b', activation=linear)
+        if gated_att:
+            logit = T.tanh(logit_lstm + logit_prev + out_gate * logit_ctx + (1 - out_gate) * logit_ctx_b)
+        else:
+            logit = T.tanh(logit_lstm + logit_prev + logit_ctx + logit_ctx_b)
         if self.O['use_dropout']:
-            logit = self.dropout(logit, use_noise, trng)
+            logit = self.dropout(logit, use_noise, trng, self.O['use_dropout'])
         logit = self.feed_forward(logit, prefix='ff_logit', activation=linear)
 
         # Compute the softmax probability
@@ -619,7 +627,7 @@ class NMTModel(object):
         # Compile a function to do the whole thing above, next word probability,
         # sampled word for the next target, next hidden state to be used
         print('Building f_next..', end='')
-        inps = [y, ctx, init_state]
+        inps = [y, ctx, word_ctx, init_state]
         if batch_mode:
             inps.insert(2, x_mask)
         outs = [next_probs, next_sample, hiddens_without_dropout]
@@ -681,14 +689,15 @@ class NMTModel(object):
 
         # get initial state of decoder rnn and encoder context
         ret = f_init(x)
-        next_state, ctx0 = ret[0], ret[1]
+        next_state, ctx0, word_ctx0 = ret[0], ret[1], ret[2]
         next_w = -1 * np.ones((1,), dtype='int64')  # bos indicator
         next_state = np.tile(next_state[None, :, :], (self.O['n_decoder_layers'], 1, 1))
         next_memory = np.zeros((self.O['n_decoder_layers'], next_state.shape[1], next_state.shape[2]), dtype=fX)
 
         for ii in xrange(maxlen):
             ctx = np.tile(ctx0, [live_k, 1])
-            inps = [next_w, ctx, next_state]
+            word_ctx = np.tile(word_ctx0, [live_k, 1])
+            inps = [next_w, ctx, word_ctx, next_state]
             if 'lstm' in unit:
                 inps.append(next_memory)
 
@@ -806,13 +815,14 @@ class NMTModel(object):
 
         # get initial state of decoder rnn and encoder context
         ret = f_init(x, x_mask)
-        next_state, ctx0 = ret[0], ret[1]
+        next_state, ctx0, word_ctx0 = ret[0], ret[1], ret[2]
         next_w = np.array([-1] * batch_size, dtype='int64')  # bos indicator
         next_state = np.tile(next_state[None, :, :], (self.O['n_decoder_layers'], 1, 1))
         next_memory = np.zeros((self.O['n_decoder_layers'], next_state.shape[1], next_state.shape[2]), dtype=fX)
 
         for ii in xrange(maxlen):
             ctx = np.repeat(ctx0, lives_k, axis=1)
+            word_ctx = np.repeat(word_ctx0, lives_k, axis=1)
             x_extend_masks = np.repeat(x_mask, lives_k, axis=1)
             cursor_start, cursor_end = 0, lives_k[0]
             for jj in xrange(batch_size):
@@ -823,7 +833,7 @@ class NMTModel(object):
                     cursor_start = cursor_end
                     cursor_end += lives_k[jj + 1]
 
-            inps = [next_w, ctx, x_extend_masks, next_state]
+            inps = [next_w, ctx, word_ctx, x_extend_masks, next_state]
             if 'lstm' in unit:
                 inps.append(next_memory)
 
