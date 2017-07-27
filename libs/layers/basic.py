@@ -98,6 +98,21 @@ def _attention(h1, projected_context_, context_, W_comb_att, U_att, c_tt, contex
     return ctx_, alpha
 
 
+def _word_attention(h1, projcted_word_context_, word_context_, W_comb_att_b, U_att_b, c_tt_b, context_mask=None):
+    pstate_word_ = T.dot(h1, W_comb_att_b)
+    pctx_word__ = projcted_word_context_ + pstate_word_[None, :, :]
+    pctx_word__ = T.tanh(pctx_word__)
+
+    beta = T.dot(pctx_word__, U_att_b) + c_tt_b
+    beta = beta.reshape([beta.shape[0], beta.shape[1]])
+    beta = beta.exp(beta)
+    if context_mask:
+        beta = beta * context_mask
+    beta = beta / beta.sum(0, keepdims=True)
+    word_ctx_ = (word_context_ * beta[:, :, None]).sum(0)
+
+    return word_ctx_, beta
+
 __all__ = [
     '_slice',
     'tanh',

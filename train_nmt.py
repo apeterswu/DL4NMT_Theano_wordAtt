@@ -33,6 +33,8 @@ def main():
                         help='Valid batch size, default is %(default)s')
     parser.add_argument('--dim_word', action='store', default=512, type=int, dest='dim_word',
                         help='Dim of word embedding, default is %(default)s')
+    parser.add_argument('--max_epochs', action='store', default=5000, type=int, dest='max_epochs',
+                        help='Max training epochs, default is %(default)s')
     parser.add_argument('--maxlen', action='store', default=80, type=int, dest='maxlen',
                         help='Max sentence length, default is %(default)s')
     parser.add_argument('-S', action='store_false', default=True, dest='shuffle',
@@ -215,6 +217,7 @@ def main():
         clip_c=args.clip,
         lrate=args.learning_rate,
         optimizer=args.optimizer,
+        max_epochs=args.max_epochs,
         maxlen=args.maxlen,
         batch_size=args.batch_size,
         valid_batch_size=args.valid_batch_size,
@@ -271,7 +274,7 @@ def main():
         tgt_vocab_map_file= args.tgt_vocab_map_file,
 
         trg_attention_layer_id=args.trg_attention_layer_id,
-        dev_bleu_freq = args.dev_bleu_freq,
+        dev_bleu_freq=args.dev_bleu_freq,
     )
 
 

@@ -6,7 +6,7 @@ import theano
 from theano import tensor as T
 
 from ..constants import fX, profile
-from .basic import _slice, _attention, dropout_layer
+from .basic import _slice, _attention, _word_attention, dropout_layer
 from ..utility.utils import _p, normal_weight, orthogonal_weight
 
 __author__ = 'fyabc'
@@ -113,11 +113,24 @@ def _lstm_step_slice_gates(
 
 
 def _lstm_step_slice_attention(
-        mask_, x_, context,
+        mask_, x_, context, word_context,
         h_, c_,
-        U, Wc):
+        U, Wc, Wc_b):
     _dim = U.shape[1] // 4
-    preact = T.dot(h_, U) + x_ + T.dot(context, Wc)
+    preact = T.dot(h_, U) + x_ + T.dot(context, Wc) + T.dot(word_context, Wc_b)
+
+    i, f, o, c, h = _lstm_step_kernel(preact, mask_, h_, c_, _dim)
+    return h, c
+
+
+def _lstm_step_slice_attention_gate_context(
+        mask_, x_, context, word_context, att_gate,
+        h_, c_,
+        U, Wc, Wc_b):
+    _dim = U.shape[1] // 4
+    attention_gate = T.tile(att_gate, 4)
+    preact = T.dot(h_, U) + x_ + T.dot(context, Wc) * attention_gate +\
+             T.dot(word_context, Wc_b) * (1 - attention_gate)
 
     i, f, o, c, h = _lstm_step_kernel(preact, mask_, h_, c_, _dim)
     return h, c
@@ -145,6 +158,8 @@ def lstm_layer(P, state_below, O, prefix='lstm', mask=None, **kwargs):
     layer_id = kwargs.pop('layer_id', 0)
     dropout_params = kwargs.pop('dropout_params', None)
     context = kwargs.pop('context', None)
+    word_context = kwargs.pop('word_context', None)
+    attention_gate = kwargs.pop('attention_gate', None)
     one_step = kwargs.pop('one_step', False)
     init_state = kwargs.pop('init_state', None)
     init_memory = kwargs.pop('init_memory', None)
@@ -209,16 +224,22 @@ def lstm_layer(P, state_below, O, prefix='lstm', mask=None, **kwargs):
             else:
                 _step = _lstm_step_slice
     else:
-        seqs = [mask, state_below, context]
+        seqs = [mask, state_below, context, word_context]
+        if attention_gate:
+            seqs.append(attention_gate)
         shared_vars = [P[_p(prefix, 'U', layer_id)],
-                       P[_p(prefix, 'Wc', layer_id)]]
+                       P[_p(prefix, 'Wc', layer_id)],
+                       P[_p(prefix, 'Wc_b', layer_id)]]
         if multi:
             _step = _step_slice_attention
         else:
             if get_gates:
                 _step = _lstm_step_slice_attention_gates
             else:
-                _step = _lstm_step_slice_attention
+                if attention_gate:
+                    _step = _lstm_step_slice_attention_gate_context
+                else:
+                    _step = _lstm_step_slice_attention
 
     if one_step:
         outputs = _step(*(seqs + init_states + shared_vars))
@@ -250,14 +271,16 @@ def lstm_layer(P, state_below, O, prefix='lstm', mask=None, **kwargs):
     return outputs
 
 
-def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimctx=None, nin_nonlin=None,
-                         dim_nonlin=None, **kwargs):
+def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimctx=None, dimctx_b=None,
+                         nin_nonlin=None, dim_nonlin=None, **kwargs):
     if nin is None:
         nin = O['dim']
     if dim is None:
         dim = O['dim']
     if dimctx is None:
         dimctx = O['dim']
+    if dimctx_b is None:
+        dimctx_b = O['dim_word']
     if nin_nonlin is None:
         nin_nonlin = nin
     if dim_nonlin is None:
@@ -265,6 +288,7 @@ def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimc
     layer_id = kwargs.pop('layer_id', 0)
     multi = 'multi' in O.get('unit', 'lstm_cond')
     unit_size = kwargs.pop('unit_size', O.get('cond_unit_size', 2))
+    gated_att = O.get('gated_att', False)
 
     if not multi:
         params[_p(prefix, 'W', layer_id)] = np.concatenate([
@@ -280,7 +304,10 @@ def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimc
             orthogonal_weight(dim_nonlin),
             orthogonal_weight(dim_nonlin),
         ], axis=1)
-
+        if gated_att:
+            params[_p(prefix, 'W_o', layer_id)] = normal_weight(nin, dim)  # W_o
+            params[_p(prefix, 'b_o', layer_id)] = np.zeros((dim, ), dtype=fX)  # b_o
+            params[_p(prefix, 'U_o', layer_id)] = orthogonal_weight(dim_nonlin)  # U_o
         params[_p(prefix, 'U_nl', layer_id)] = np.concatenate([
             orthogonal_weight(dim_nonlin),
             orthogonal_weight(dim_nonlin),
@@ -288,9 +315,18 @@ def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimc
             orthogonal_weight(dim_nonlin),
         ], axis=1)
         params[_p(prefix, 'b_nl', layer_id)] = np.zeros((4 * dim_nonlin,), dtype=fX)
+        # another transformation
+        if gated_att:
+            params[_p(prefix, 'U_nl_o', layer_id)] = orthogonal_weight(dim_nonlin)
+            params[_p(prefix, 'b_nl_o', layer_id)] = np.zeros((dim_nonlin, ), dtype=fX)
 
         # context to LSTM
-        params[_p(prefix, 'Wc', layer_id)] = normal_weight(dimctx, dim * 4)
+        params[_p(prefix, 'Wc', layer_id)] = normal_weight(dimctx, dim * 4)  # C
+        # word context to LSTM
+        params[_p(prefix, 'Wc_b', layer_id)] = normal_weight(dimctx_b, dim * 4)  # C_b
+        if gated_att:
+            params[_p(prefix, 'Wc_o')] = normal_weight(dimctx, dim)  # C_o
+            params[_p(prefix, 'Wc_o_b')] = normal_weight(dimctx_b, dim)  # C_o_b
     else:
         params[_p(prefix, 'W', layer_id)] = np.stack([np.concatenate([
             normal_weight(nin, dim),
@@ -331,11 +367,17 @@ def param_init_lstm_cond(O, params, prefix='lstm_cond', nin=None, dim=None, dimc
     params[_p(prefix, 'U_att', layer_id)] = normal_weight(dimctx, 1)
     params[_p(prefix, 'c_tt', layer_id)] = np.zeros((1,), dtype=fX)
 
+    # word context
+    params[_p(prefix, 'W_comb_att_b', layer_id)] = normal_weight(dim, dimctx_b)
+    params[_p(prefix, 'Wc_att_b', layer_id)] = normal_weight(dimctx_b)
+    params[_p(prefix, 'b_att_b', layer_id)] = np.zeros((dimctx_b,), dtype=fX)
+    params[_p(prefix, 'U_att_b', layer_id)] = normal_weight(dimctx_b, 1)
+    params[_p(prefix, 'c_tt_b', layer_id)] = np.zeros((1,), dtype=fX)
     return params
 
 
-def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, one_step=False, init_memory=None,
-                    init_state=None, context_mask=None, **kwargs):
+def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, word_context=None,
+                    one_step=False, init_memory=None, init_state=None, context_mask=None, **kwargs):
     """Conditional LSTM layer with attention
 
     inputs and outputs are same as GRU cond layer.
@@ -346,11 +388,14 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
     unit_size = kwargs.pop('unit_size', O.get('cond_unit_size', 2))
     # FIXME: multi-gru/lstm do NOT support get_gates now
     get_gates = kwargs.pop('get_gates', False)
+    gated_att = O.get('gated_att', False)
 
     kw_ret = {}
 
     assert context, 'Context must be provided'
     assert context.ndim == 3, 'Context must be 3-d: #annotation * #sample * dim'
+    assert word_context, 'Word Context must be provided'
+    assert word_context.ndim == 3, 'Word Context must b 3-d: #annotatio * # sample * dim_word'
     if one_step:
         assert init_state, 'previous state must be provided'
 
@@ -375,6 +420,7 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
         init_state = T.alloc(0., n_samples, dim)
 
     projected_context = T.dot(context, P[_p(prefix, 'Wc_att', layer_id)]) + P[_p(prefix, 'b_att', layer_id)]
+    projectd_word_context = T.dot(word_context, P[_p(prefix, 'Wc_att_b', layer_id)]) + P[_p(prefix, 'b_att_b', layer_id)]
 
     # Projected x
     if multi:
@@ -384,9 +430,35 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
         ], axis=-1)
     else:
         state_below = T.dot(state_below, P[_p(prefix, 'W', layer_id)]) + P[_p(prefix, 'b', layer_id)]
+        if gated_att:
+            state_below_o = T.dot(state_below, P[_p(prefix, 'W_o', layer_id)]) + P[_p(prefix, 'b_o')]
 
-    def _one_step_attention_slice(mask_, h1, c1, ctx_, Wc, U_nl, b_nl):
+    # add word context into step_attention calculation
+    def _one_step_attention_slice(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl):
         preact2 = T.dot(h1, U_nl) + b_nl + T.dot(ctx_, Wc)
+        # word context
+        preact2 += T.dot(word_ctx_, Wc_b)
+
+        i2 = T.nnet.sigmoid(_slice(preact2, 0, dim))
+        f2 = T.nnet.sigmoid(_slice(preact2, 1, dim))
+        o2 = T.nnet.sigmoid(_slice(preact2, 2, dim))
+        c2 = T.tanh(_slice(preact2, 3, dim))
+
+        c2 = f2 * c1 + i2 * c2
+        c2 = mask_[:, None] * c2 + (1. - mask_)[:, None] * c1
+
+        h2 = o2 * T.tanh(c2)
+        h2 = mask_[:, None] * h2 + (1. - mask_)[:, None] * h1
+
+        if get_gates:
+            return h2, c2, i2, f2, o2
+
+        return h2, c2
+
+    def _one_step_attention_slice_gate(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl, att_gate2):
+        att_gate2 = T.tile(att_gate2, 4)  # attention_gate for all lstm gates.
+        preact2 = T.dot(h1, U_nl) + b_nl + T.dot(ctx_, Wc) * att_gate2
+        preact2 += T.dot(word_ctx_, Wc_b) * (1 - att_gate2)
 
         i2 = T.nnet.sigmoid(_slice(preact2, 0, dim))
         f2 = T.nnet.sigmoid(_slice(preact2, 1, dim))
@@ -405,19 +477,44 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
         return h2, c2
 
     def _step_slice(mask_, x_,
-                    h_, c_, ctx_, alpha_,
-                    projected_context_, context_,
-                    U, Wc, W_comb_att, U_att, c_tt, U_nl, b_nl):
+                    h_, c_, ctx_, ctx_b_, alpha_, beta_,
+                    projected_context_, projected_word_context_, context_, word_context_,
+                    U, Wc, W_comb_att, U_att, c_tt, U_nl, b_nl,
+                    Wc_b, W_comb_att_b, U_att_b, c_tt_b):
         # LSTM 1
         h1, c1 = _lstm_step_slice(mask_, x_, h_, c_, U)
 
         # Attention
-        ctx_, alpha = _attention(h1, projected_context_, context_, W_comb_att, U_att, c_tt, context_mask=context_mask)
+        ctx_, alpha = _attention(h1, projected_context_, context_,
+                                 W_comb_att, U_att, c_tt, context_mask=context_mask)
+        word_ctx_, beta = _word_attention(h1, projected_word_context_, word_context_,
+                                          W_comb_att_b, U_att_b, c_tt_b, context_mask=context_mask)
 
         # LSTM 2 (with attention)
-        h2, c2 = _one_step_attention_slice(mask_, h1, c1, ctx_, Wc, U_nl, b_nl)
+        h2, c2 = _one_step_attention_slice(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl)
 
-        return h2, c2, ctx_, alpha.T
+        return h2, c2, ctx_, word_ctx_, alpha.T, beta.T
+
+    def _step_slice_gate_att(mask_, x_, x_o_,
+                             h_, c_, ctx_, ctx_b, alpha_, beta_,
+                             projected_context_, projected_word_context_, context_, word_context_,
+                             U, Wc, W_comb_att, U_att, c_tt, U_nl, b_nl,
+                             Wc_b, W_comb_att_b, U_att_b, c_tt_b, U_o, Wc_o, Wc_o_b, U_nl_o, b_nl_o):
+        # LSTM 1
+        h1, c1 = _lstm_step_slice(mask_, x_, h_, c_, U)
+        att_gate1 = T.nnet.sigmoid(T.dot(h_, U_o) + x_o_)
+
+        # Attention
+        ctx_, alpha = _attention(h1, projected_context_, context_,
+                                 W_comb_att, U_att, c_tt, context_mask=context_mask)
+        word_ctx_, beta = _word_attention(h1, projected_word_context_, word_context_,
+                                          W_comb_att_b, U_att_b, c_tt_b, context_mask=context_mask)
+
+        att_gate2 = T.nnet.sigmoid(T.dot(att_gate1, U_nl_o) + b_nl_o + T.dot(ctx_, Wc_o) + T.dot(word_ctx_, Wc_o_b))
+        # LSTM 2 (with attention)
+        h2, c2 = _one_step_attention_slice_gate(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl, att_gate2)
+
+        return h2, c2, ctx_, word_ctx_, alpha.T, beta.T, att_gate2  # also return att_gate for later layers.
 
     # todo: implement it
     def _step_slice_gates(mask_, x_,
@@ -463,21 +560,30 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
 
     # Prepare scan arguments
     seqs = [mask, state_below]
+    if gated_att:
+        seqs.append(state_below_o)
     if multi:
         _step = _multi_step_slice
     else:
         if get_gates:
             _step = _step_slice_gates
         else:
-            _step = _step_slice
+            if gated_att:  # gated_attention
+                _step = _step_slice_gate_att
+            else:
+                _step = _step_slice
     init_states = [
         init_state,
         T.alloc(0., n_samples, dim) if init_memory is None else init_memory,
-        T.alloc(0., n_samples, context.shape[2]),
-        T.alloc(0., n_samples, context.shape[0]),
+        T.alloc(0., n_samples, context.shape[2]),  # context
+        T.alloc(0., n_samples, word_context.shape[2]),  # word context
+        T.alloc(0., n_samples, context.shape[0]),   # alpha attention
+        T.alloc(0., n_samples, word_context.shape[0]),  # beta attention
     ]
     if get_gates:
         init_states.extend([T.alloc(0., n_samples, dim) for _ in range(6)])
+    if gated_att:
+        init_states.extend([T.alloc(0., n_samples, dim)])   # dimension of gate: dim
 
     shared_vars = [
         P[_p(prefix, 'U', layer_id)],
@@ -487,16 +593,30 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
         P[_p(prefix, 'c_tt', layer_id)],
         P[_p(prefix, 'U_nl', layer_id)],
         P[_p(prefix, 'b_nl', layer_id)],
+        P[_p(prefix, 'Wc_b', layer_id)],
+        P[_p(prefix, 'W_comb_att_b', layer_id)],
+        P[_p(prefix, 'U_att_b', layer_id)],
+        P[_p(prefix, 'c_tt_b', layer_id)],
     ]
+    if gated_att:
+        shared_vars.extend([P[_p(prefix, 'U_o', layer_id)],
+                            P[_p(prefix, 'Wc_o', layer_id)],
+                            P[_p(prefix, 'Wc_o_b', layer_id)],
+                            P[_p(prefix, 'U_nl_o', layer_id)],
+                            P[_p(prefix, 'b_nl_o', layer_id)],
+                            ])
 
     if one_step:
-        result = _step(*(seqs + init_states + [projected_context, context] + shared_vars))
+        result = _step(*(seqs + init_states +
+                         [projected_context, projectd_word_context, context, word_context]
+                         + shared_vars))
     else:
         result, _ = theano.scan(
             _step,
             sequences=seqs,
             outputs_info=init_states,
-            non_sequences=[projected_context, context] + shared_vars,
+            non_sequences=[projected_context, projectd_word_context, context, word_context]
+                          + shared_vars,
             name=_p(prefix, '_layers'),
             n_steps=n_steps,
             profile=profile,
@@ -507,12 +627,12 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
     kw_ret['memory_output'] = result[1]
 
     if get_gates:
-        kw_ret['input_gates'] = result[4]
-        kw_ret['forget_gates'] = result[5]
-        kw_ret['output_gates'] = result[6]
-        kw_ret['input_gates_att'] = result[7]
-        kw_ret['forget_gates_att'] = result[8]
-        kw_ret['output_gates_att'] = result[9]
+        kw_ret['input_gates'] = result[6]
+        kw_ret['forget_gates'] = result[7]
+        kw_ret['output_gates'] = result[8]
+        kw_ret['input_gates_att'] = result[9]
+        kw_ret['forget_gates_att'] = result[10]
+        kw_ret['output_gates_att'] = result[11]
 
     result = list(result)
 
@@ -520,7 +640,10 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, o
         result[0] = dropout_layer(result[0], *dropout_params)
 
     # Return memory c at the last in kw_ret
-    return result[0], result[2], result[3], kw_ret
+    if gated_att:
+        return result[0], result[2], result[4], result[3], result[5], result[-1], kw_ret  # result[-1] is att_gate
+    else:
+        return result[0], result[2], result[4], result[3], result[5], None, kw_ret
 
 
 __all__ = [

@@ -64,6 +64,7 @@ class ParameterInitializer(object):
 
     def init_decoder(self, np_parameters):
         context_dim = 2 * self.O['dim']
+        context_dim_b = self.O['dim_word']
         attention_layer_id = self.O['attention_layer_id']
         n_layers = self.O['n_decoder_layers']
         all_att = self.O['decoder_all_attention']
@@ -92,13 +93,13 @@ class ParameterInitializer(object):
             np_parameters = get_init(unit + '_cond')(
                 self.O, np_parameters, prefix='decoder',
                 nin=self.O['dim_word'] if attention_layer_id == 0 else self.O['dim'],
-                dim=self.O['dim'], dimctx=context_dim, layer_id=attention_layer_id, unit_size=unit_size)
+                dim=self.O['dim'], dimctx=context_dim, dimctx_b=context_dim_b, layer_id=attention_layer_id, unit_size=unit_size)
 
             # Layers after attention layer
             for layer_id in xrange(attention_layer_id + 1, n_layers):
                 np_parameters = get_init(unit)(
                     self.O, np_parameters, prefix='decoder', nin=self.O['dim'],
-                    dim=self.O['dim'], layer_id=layer_id, context_dim=context_dim, unit_size=unit_size)
+                    dim=self.O['dim'], layer_id=layer_id, context_dim=context_dim, dimctx_b=context_dim_b, unit_size=unit_size)
 
         return np_parameters
 
@@ -197,16 +198,41 @@ class ParameterInitializer(object):
 
         # Readout
         context_dim = 2 * self.O['dim']
+        context_dim_x = self.O['dim_word']
+        gated_att = self.O.get('gated_att', False)
+        if gated_att:
+            np_parameters = self.init_output_gate(np_parameters, prefix='out_gate', nin=self.O['dim'],
+                                                  nin_word=self.O['dim_word'], context_dim=context_dim,
+                                                  word_context_dim=context_dim_x, nout=self.O['dim_word'])
         np_parameters = self.init_feed_forward(np_parameters, prefix='ff_logit_lstm', nin=self.O['dim'],
                                                nout=self.O['dim_word'], orthogonal=False)
         np_parameters = self.init_feed_forward(np_parameters, prefix='ff_logit_prev', nin=self.O['dim_word'],
                                                nout=self.O['dim_word'], orthogonal=False)
         np_parameters = self.init_feed_forward(np_parameters, prefix='ff_logit_ctx', nin=context_dim,
                                                nout=self.O['dim_word'], orthogonal=False)
+        np_parameters = self.init_feed_forward(np_parameters, prefix='ff_logit_ctx_b', nin=context_dim_x,
+                                               nout=self.O['dim_word'], orthogonal=False)
         np_parameters = self.init_feed_forward(np_parameters, prefix='ff_logit', nin=self.O['dim_word'],
                                                nout=self.O['n_words'])
 
         return np_parameters
+
+    def init_output_gate(self, params, prefix='out_gate', nin=None, nin_word=None,
+                         context_dim=None, word_context_dim=None, nout=None, orthogonal=True):
+        """output gate layer: gate controller for context and word context"""
+        if nin is None:
+            nin = self.O['dim']
+        if nin_word is None:
+            nin_word = self.O['dim_word']
+        if nout is None:
+            nout = self.O['dim_word']
+        params[_p(prefix, 'W')] = normal_weight(nin_word, nout)  # W_out
+        params[_p(prefix, 'b')] = np.zeros((nout,), dtype=fX)  # b_out
+        params[_p(prefix, 'U')] = normal_weight(nin, nout)  # U_out
+        params[_p(prefix, 'Wc')] = normal_weight(context_dim, nout)  # C_out
+        params[_p(prefix, 'Wc_b')] = normal_weight(word_context_dim, nout)  # C_out_b
+
+        return params
 
     def init_feed_forward(self, params, prefix='ff', nin=None, nout=None, orthogonal=True):
         """feed-forward layer: affine transformation + point-wise nonlinearity"""
@@ -339,8 +365,8 @@ class NMTModel(object):
         # Encoder
         context, kw_ret = self.encoder(src_embedding, src_embedding_r, x_mask, x_mask_r,
                                        dropout_params=kwargs.pop('dropout_params', None), get_gates=get_gates)
-
-        return [x, x_mask, y, y_mask], context, kw_ret
+        word_context = src_embedding
+        return [x, x_mask, y, y_mask], context, word_context, kw_ret
 
     def input_to_decoder_context(self, given_input=None):
         """Build the part of the model that from input to context vector of decoder.
@@ -350,7 +376,7 @@ class NMTModel(object):
         :return: tuple of input list and output
         """
 
-        (x, x_mask, y, y_mask), context, _ = self.input_to_context(given_input)
+        (x, x_mask, y, y_mask), context, word_context, _ = self.input_to_context(given_input)
 
         n_timestep, n_timestep_tgt, n_samples = self.input_dimensions(x, y)
 
@@ -397,7 +423,7 @@ class NMTModel(object):
         else:
             dropout_params = None
 
-        (x, x_mask, y, y_mask), context, _ = self.input_to_context(dropout_params=dropout_params)
+        (x, x_mask, y, y_mask), context, word_context, _ = self.input_to_context(dropout_params=dropout_params)
 
         n_timestep, n_timestep_tgt, n_samples = self.input_dimensions(x, y)
 
@@ -415,15 +441,16 @@ class NMTModel(object):
         tgt_embedding = emb_shifted
 
         # Decoder - pass through the decoder conditional gru with attention
-        hidden_decoder, context_decoder, opt_ret['dec_alphas'], _ = self.decoder(
-            tgt_embedding, y_mask=y_mask, init_state=init_decoder_state, context=context, x_mask=x_mask,
-            dropout_params=dropout_params, one_step=False,
+        hidden_decoder, context_decoder, word_context_decoder, \
+        opt_ret['dec_alphas'], opt_ret['dec_betas'], _ = self.decoder(
+            tgt_embedding, y_mask=y_mask, init_state=init_decoder_state, context=context, word_context=word_context,
+            x_mask=x_mask, dropout_params=dropout_params, one_step=False,
         )
 
-        trng, use_noise, probs = self.get_word_probability(hidden_decoder, context_decoder, tgt_embedding,
-                                                           trng=trng, use_noise=use_noise)
+        trng, use_noise, probs = self.get_word_probability(hidden_decoder, context_decoder, word_context_decoder,
+                                                           tgt_embedding, trng=trng, use_noise=use_noise)
         test_cost = self.build_cost(y, y_mask, probs)
-        cost =  test_cost / self.O['cost_normalization'] #cost used to derive gradient in training
+        cost = test_cost / self.O['cost_normalization']  # cost used to derive gradient in training
 
         # Plot computation graph
         if self.O['plot_graph'] is not None:
@@ -464,7 +491,7 @@ class NMTModel(object):
         """
         get_gates = kwargs.pop('get_gates', False)
 
-        [x, x_mask, y, y_mask], context, kw_ret_encoder = self.input_to_context(get_gates=get_gates)
+        [x, x_mask, y, y_mask], context, word_context, kw_ret_encoder = self.input_to_context(get_gates=get_gates)
 
         inps = [x, x_mask]
         outs = [context]
@@ -1115,7 +1142,7 @@ class NMTModel(object):
 
         return context, kw_ret
 
-    def decoder(self, tgt_embedding, y_mask, init_state, context, x_mask,
+    def decoder(self, tgt_embedding, y_mask, init_state, context, word_context, x_mask,
                 dropout_params=None, one_step=False, init_memory=None, **kwargs):
         """Multi-layer GRU decoder.
 
@@ -1237,6 +1264,7 @@ class NMTModel(object):
 
                 outputs.append(layer_out[0])
 
+            '''focus on attention layer and later layers with word context'''
             # Attention layer
             if attention_layer_id == 0:
                 inputs.append(tgt_embedding)
@@ -1252,8 +1280,9 @@ class NMTModel(object):
                 else:
                     inputs.append(outputs[-1])
 
-            hidden_decoder, context_decoder, alpha_decoder, kw_ret_att = get_build(unit + '_cond')(
-                self.P, inputs[-1], self.O, prefix='decoder', mask=y_mask, context=context,
+            hidden_decoder, context_decoder, alpha_decoder, \
+            word_context_decoder, beta_decoder, attention_gate, kw_ret_att = get_build(unit + '_cond')(
+                self.P, inputs[-1], self.O, prefix='decoder', mask=y_mask, context=context, word_context=word_context,
                 context_mask=x_mask, one_step=one_step, init_state=init_state[attention_layer_id],
                 dropout_params=dropout_params, layer_id=attention_layer_id, init_memory=init_memory[attention_layer_id],
                 get_gates=get_gates, unit_size=unit_size,
@@ -1288,8 +1317,9 @@ class NMTModel(object):
 
                 layer_out = get_build(unit)(
                     self.P, inputs[-1], self.O, prefix='decoder', mask=y_mask, layer_id=layer_id,
-                    dropout_params=dropout_params, context=context_decoder, init_state=init_state[layer_id],
-                    one_step=one_step, init_memory=init_memory[layer_id], get_gates=get_gates, unit_size=unit_size,
+                    dropout_params=dropout_params, context=context_decoder, word_context=word_context_decoder,
+                    init_state=init_state[layer_id], one_step=one_step, init_memory=init_memory[layer_id],
+                    get_gates=get_gates, unit_size=unit_size, attention_gate=attention_gate,
                 )
                 kw_ret_layer = layer_out[-1]
 
@@ -1303,20 +1333,34 @@ class NMTModel(object):
 
                 outputs.append(layer_out[0])
 
-            return outputs[-1], context_decoder, alpha_decoder, kw_ret
+            return outputs[-1], context_decoder, word_context_decoder, alpha_decoder, beta_decoder, kw_ret
 
-    def get_word_probability(self, hidden_decoder, context_decoder, tgt_embedding, **kwargs):
+    def output_gate(self, hidden_decoder, context_decoder, word_context_decoder, tgt_embedding, prefix='out_gate'):
+        out_gate = T.nnet.sigmoid(T.dot(tgt_embedding, self.P[_p(prefix, 'W')]) +
+                                  T.dot(hidden_decoder, self.P[_p(prefix, 'U')]) +
+                                  T.dot(context_decoder, self.P[_p(prefix, 'Wc')]) +
+                                  T.dot(word_context_decoder, self.P[_p(prefix, 'Wc_b')]) +
+                                  self.P[_p(prefix, 'b')])
+        return out_gate
+
+    def get_word_probability(self, hidden_decoder, context_decoder, word_context_decoder, tgt_embedding, **kwargs):
         """Compute word probabilities."""
 
         trng = kwargs.pop('trng', RandomStreams(1234))
         use_noise = kwargs.pop('use_noise', theano.shared(np.float32(0.)))
-
+        gated_att = self.O.get('gated_att', False)
+        if gated_att:
+            out_gate = self.output_gate(hidden_decoder, context_decoder, word_context_decoder, tgt_embedding, prefix='out_gate')
         logit_lstm = self.feed_forward(hidden_decoder, prefix='ff_logit_lstm', activation=linear)
         logit_prev = self.feed_forward(tgt_embedding, prefix='ff_logit_prev', activation=linear)
         logit_ctx = self.feed_forward(context_decoder, prefix='ff_logit_ctx', activation=linear)
-        logit = T.tanh(logit_lstm + logit_prev + logit_ctx)  # n_timestep * n_sample * dim_word
+        logit_ctx_b = self.feed_forward(word_context_decoder, prefix='ff_logit_ctx_b', activation=linear)
+        if gated_att:
+            logit = T.tanh(logit_lstm + logit_prev + out_gate * logit_ctx + (1 - out_gate) * logit_ctx_b)  # n_timestep * n_sample * dim_word
+        else:
+            logit = T.tanh(logit_lstm + logit_prev + logit_ctx + logit_ctx_b)  # n_timestep * n_sample * dim_word
         if self.O['use_dropout']:
-            logit = self.dropout(logit, use_noise, trng)
+            logit = self.dropout(logit, use_noise, trng, self.O['use_dropout'])
         # n_timestep * n_sample * n_words
         logit = self.feed_forward(logit, prefix='ff_logit', activation=linear)
         logit_shp = logit.shape
