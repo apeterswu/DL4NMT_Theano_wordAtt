@@ -436,9 +436,9 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, w
             for j in range(unit_size)
         ], axis=-1)
     else:
-        state_below = T.dot(state_below, P[_p(prefix, 'W', layer_id)]) + P[_p(prefix, 'b', layer_id)]
         if gated_att:
             state_below_o = T.dot(state_below, P[_p(prefix, 'W_o', layer_id)]) + P[_p(prefix, 'b_o', layer_id)]
+        state_below = T.dot(state_below, P[_p(prefix, 'W', layer_id)]) + P[_p(prefix, 'b', layer_id)]
 
     # add word context into step_attention calculation
     def _one_step_attention_slice(mask_, h1, c1, ctx_, word_ctx_, Wc, Wc_b, U_nl, b_nl):
