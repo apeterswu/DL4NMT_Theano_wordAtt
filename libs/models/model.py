@@ -828,6 +828,7 @@ class NMTModel(object):
             for jj in xrange(batch_size):
                 if lives_k[jj] > 0:
                     ctx[:, cursor_start: cursor_end, :] = np.repeat(ctx0[:, jj, :][:, None, :], lives_k[jj], axis=1)
+                    word_ctx[:, cursor_start: cursor_end, :] = np.repeat(word_ctx0[:, jj, :][:, None, :], lives_k[jj], axis=1)
                     x_extend_masks[:, cursor_start: cursor_end] = np.repeat(x_mask[:, jj][:, None], lives_k[jj], axis=1)
                 if jj < batch_size - 1:
                     cursor_start = cursor_end

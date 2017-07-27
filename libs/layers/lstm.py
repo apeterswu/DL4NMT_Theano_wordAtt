@@ -427,7 +427,7 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, w
         init_state = T.alloc(0., n_samples, dim)
 
     projected_context = T.dot(context, P[_p(prefix, 'Wc_att', layer_id)]) + P[_p(prefix, 'b_att', layer_id)]
-    projectd_word_context = T.dot(word_context, P[_p(prefix, 'Wc_att_b', layer_id)]) + P[_p(prefix, 'b_att_b', layer_id)]
+    projected_word_context = T.dot(word_context, P[_p(prefix, 'Wc_att_b', layer_id)]) + P[_p(prefix, 'b_att_b', layer_id)]
 
     # Projected x
     if multi:
@@ -615,14 +615,14 @@ def lstm_cond_layer(P, state_below, O, prefix='lstm', mask=None, context=None, w
 
     if one_step:
         result = _step(*(seqs + init_states +
-                         [projected_context, projectd_word_context, context, word_context]
+                         [projected_context, projected_word_context, context, word_context]
                          + shared_vars))
     else:
         result, _ = theano.scan(
             _step,
             sequences=seqs,
             outputs_info=init_states,
-            non_sequences=[projected_context, projectd_word_context, context, word_context]
+            non_sequences=[projected_context, projected_word_context, context, word_context]
                           + shared_vars,
             name=_p(prefix, '_layers'),
             n_steps=n_steps,
