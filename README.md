@@ -10,7 +10,7 @@ git clone https://github.com/apeterswu/DL4NMT_Theano_wordAtt.git
 git clone https://github.com/Lasagne/Lasagne.git
 cd Lasagne
 pip install .
-cd ../DL4NMT_Theano
+cd ../DL4NMT_Theano_wordAtt
 mkdir -p log/complete translated/complete model/complete
  copy data from other nodes to here...
 ```
