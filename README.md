@@ -11,7 +11,6 @@ git clone https://github.com/Lasagne/Lasagne.git
 cd Lasagne
 pip install .
 cd ../DL4NMT_Theano
-mkdir -p data/train data/test data/dev data/dic 
 mkdir -p log/complete translated/complete model/complete
  copy data from other nodes to here...
 ```
