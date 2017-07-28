@@ -1,4 +1,4 @@
-# DL4NMT_Theano
+# DL4NMT_Theano with word Attention
 
 Deep neural machine translation (NMT) model, implemented in Theano.
 
