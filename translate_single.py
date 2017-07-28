@@ -25,7 +25,7 @@ def translate_model_single(input_, model_name, options, k, normalize):
     model, _ = build_and_init_model(model_name, options=options, build=False)
 
     # word index
-    f_init, f_next = model.build_sampler(trng=trng, use_noise=use_noise)
+    f_init, f_next = model.build_sampler(trng=trng, use_noise=use_noise, dropout=options['use_dropout'])
 
     return translate(input_, model, f_init, f_next, trng, k, normalize)
 
@@ -60,7 +60,8 @@ def main(model, dictionary, dictionary_target, source_file, saveto, k=5,
 
     model, _ = build_and_init_model(model, options=options, build=False, model_type=model_type)
 
-    f_init, f_next = model.build_sampler(trng=trng, use_noise=use_noise, batch_mode=batch_mode)
+    f_init, f_next = model.build_sampler(trng=trng, use_noise=use_noise, batch_mode=batch_mode,
+                                         dropout=options['use_dropout'])
 
     if not batch_mode:
         word_dict, word_idict, word_idict_trg, input_ = load_translate_data(

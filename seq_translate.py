@@ -1,4 +1,5 @@
-# usage: python seq_translate.py model_prefix --start start_iteration --end end_iteration --gap interval --dataset dataset
+# usage: python seq_translate.py model_prefix --start start_iteration --end end_iteration --gap interval
+# --dataset dataset --beam beam_search_size
 
 import argparse
 import sys
