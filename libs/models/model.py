@@ -620,7 +620,8 @@ class NMTModel(object):
         else:
             logit = T.tanh(logit_lstm + logit_prev + logit_ctx + logit_ctx_b)
         if self.O['use_dropout']:
-            logit = self.dropout(logit, use_noise, trng, self.O['use_dropout'])
+            dropout_rate = self.O['use_dropout'] if self.O['fix_dp_bug'] else 0.5
+            logit = self.dropout(logit, use_noise, trng, dropout_rate)
         logit = self.feed_forward(logit, prefix='ff_logit', activation=linear)
 
         # Compute the softmax probability
@@ -1376,7 +1377,8 @@ class NMTModel(object):
         else:
             logit = T.tanh(logit_lstm + logit_prev + logit_ctx + logit_ctx_b)  # n_timestep * n_sample * dim_word
         if self.O['use_dropout']:
-            logit = self.dropout(logit, use_noise, trng, self.O['use_dropout'])
+            dropout_rate = self.O['use_dropout'] if self.O['fix_dp_bug'] else 0.5
+            logit = self.dropout(logit, use_noise, trng, dropout_rate)
         # n_timestep * n_sample * n_words
         logit = self.feed_forward(logit, prefix='ff_logit', activation=linear)
         logit_shp = logit.shape

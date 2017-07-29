@@ -140,6 +140,8 @@ def main():
                         help='Validation frequency, default is 5000')
     parser.add_argument('--trg_att', action='store', metavar='N', dest='trg_attention_layer_id', type=int, default=None,
                         help='Target attention layer id, default is None (not use target attention)')
+    parser.add_argument('--fix_dp_bug', action="store_true", default=False, dest='fix_dp_bug',
+                        help='Fix previous dropout bug, default to False, set to True')
 
     args = parser.parse_args()
     print args
@@ -278,6 +280,7 @@ def main():
 
         trg_attention_layer_id=args.trg_attention_layer_id,
         dev_bleu_freq=args.dev_bleu_freq,
+        fix_dp_bug=args.fix_dp_bug,
     )
 
 
