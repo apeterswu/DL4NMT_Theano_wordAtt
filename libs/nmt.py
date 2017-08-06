@@ -491,9 +491,9 @@ Start Time = {}
                             if finetune_cnt % 2 == 0:
                                 lrate = np.float32(lrate * 0.5)
                                 message('Discount learning rate to {} at iteration {}'.format(lrate, uidx))
-                                if lrate <= 0.025:
-                                    message('Learning rate decayed to {:.5f}, task completed'.format(lrate))
-                                    return 1., 1., 1.
+                                # if lrate <= 0.025:
+                                #     message('Learning rate decayed to {:.5f}, task completed'.format(lrate))
+                                #     return 1., 1., 1.
                             else:
                                 clip_shared.set_value(np.float32(clip_shared.get_value() * 0.25))
                                 message('Discount clip value to {} at iteration {}'.format(clip_shared.get_value(), uidx))
