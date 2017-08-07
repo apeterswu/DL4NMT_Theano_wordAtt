@@ -542,6 +542,7 @@ def load_options(options, reload_=None, preload=None, maintain_vocab_size = Fals
     reload_ = options['reload_'] if reload_ is None else reload_
     preload = options['preload'] if preload is None else preload
     dropout = options['use_dropout']
+    fix_dp_bug = options['fix_dp_bug']
     valid_datasets = options['valid_datasets']
     src_vocab_size = options['n_words_src']
     tgt_vocab_size = options['n_words']
@@ -558,6 +559,7 @@ def load_options(options, reload_=None, preload=None, maintain_vocab_size = Fals
         options['preload'] = preload
         options['use_dropout'] = dropout
         options['valid_datasets'] = valid_datasets
+        options['fix_dp_bug'] = fix_dp_bug
         if maintain_vocab_size:
             options['n_words_src'] = src_vocab_size
             options['n_words'] = tgt_vocab_size
