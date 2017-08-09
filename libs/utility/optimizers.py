@@ -199,12 +199,13 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
                                      running_grads2)]
     ru2up = [(ru2, alpha * ru2 + (1 - alpha) * (ud ** 2))
              for ru2, ud in zip(running_up2, updir)]
-    param_up = [(p, p + lr * ud) for p, ud in zip(itemlist(tparams), updir)]
+    param_up = [(p, p + lr * ud) for p, ud in zip(itemlist(tparams, fix_word_emb, only_word_att, gated_att), updir)]
 
     f_update = theano.function([lr], [], updates=rg2up + ru2up + param_up,
                                on_unused_input='ignore', profile=profile)
 
     return f_grad_shared, f_update, zipped_grads, [running_up2, running_grads2]
+
 
 def rmsprop(lr, tparams, grads, inp, cost, **kwargs):
     g2 = kwargs.pop('g2', None)

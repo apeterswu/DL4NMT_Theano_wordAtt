@@ -26,8 +26,8 @@ _fp_log = None
 
 emb_para_names = {'Wemb','Wemb_dec', 'ff_logit_W', 'ff_logit_b'}
 word_att_gate_names = {'Wc_b', 'W_o', 'b_o', 'U_o', 'U_nl_o', 'b_nl_o', 'Wc_o', 'Wc_o_b',
-                       'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b', 'out_gate'}
-word_att_names = {'Wc_b', 'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b'}
+                       'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b', 'out_gate', 'ff_logit_ctx_b'}
+word_att_names = {'Wc_b', 'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b', 'ff_logit_ctx_b'}
 
 
 def set_logging_file(logging_filename):
