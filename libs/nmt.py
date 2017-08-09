@@ -126,6 +126,9 @@ def train(dim_word=100,  # word vector dimensionality
           cond_unit_size=2,
           gated_att=False,
 
+          fix_word_emb=False,
+          only_word_att=False,
+
           given_imm=False,
           dump_imm=False,
           shuffle_data=False,
@@ -264,7 +267,7 @@ Start Time = {}
     f_log_probs = theano.function(inps, cost, profile=profile)
     print 'Done'
     sys.stdout.flush()
-    test_cost = test_cost.mean() #FIXME: do not regularize test_cost here
+    test_cost = test_cost.mean()  # FIXME: do not regularize test_cost here
 
     cost = cost.mean()
 
@@ -286,12 +289,12 @@ Start Time = {}
         print 'Done'
 
     print 'Computing gradient...',
-    grads = tensor.grad(cost, wrt=itemlist(model.P))
+    grads = tensor.grad(cost, wrt=itemlist(model.P, fix_word_emb, only_word_att, gated_att))
 
     clip_shared = theano.shared(np.array(clip_c, dtype=fX), name='clip_shared')
 
     if dist_type != 'mpi_reduce':  # build grads clip into computational graph
-        grads, g2 = clip_grad_remove_nan(grads, clip_shared, model.P)
+        grads, g2 = clip_grad_remove_nan(grads, clip_shared, model.P, fix_word_emb, only_word_att, gated_att)
     else:  # do the grads clip after gradients aggregation
         g2 = None
 
@@ -302,11 +305,13 @@ Start Time = {}
     given_imm_data = get_adadelta_imm_data(optimizer, given_imm, preload)
 
     f_grad_shared, f_update, grads_shared, imm_shared = Optimizers[optimizer](
-        lr, model.P, grads, inps, cost, g2=g2, given_imm_data=given_imm_data, alpha = ada_alpha)
+        lr, model.P, grads, inps, cost, g2=g2, given_imm_data=given_imm_data, alpha=ada_alpha,
+        fix_word_emb=fix_word_emb, only_word_att=only_word_att, gated_att=gated_att)
     print 'Done'
 
     if dist_type == 'mpi_reduce':
-        f_grads_clip = make_grads_clip_func(grads_shared = grads_shared, mt_tparams= model.P, clip_c_shared = clip_shared)
+        f_grads_clip = make_grads_clip_func(grads_shared = grads_shared, mt_tparams=model.P, clip_c_shared=clip_shared,
+                                            fix_word_emb=fix_word_emb, only_word_att=only_word_att, gated_att=gated_att)
 
     print 'Optimization'
     log('Preparation Done\n@Current Time = {}'.format(time.time()))

@@ -24,6 +24,11 @@ from .data_iterator import TextIterator
 
 _fp_log = None
 
+emb_para_names = {'Wemb','Wemb_dec', 'ff_logit_W', 'ff_logit_b'}
+word_att_gate_names = {'Wc_b', 'W_o', 'b_o', 'U_o', 'U_nl_o', 'b_nl_o', 'Wc_o', 'Wc_o_b',
+                       'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b', 'out_gate'}
+word_att_names = {'Wc_b', 'W_comb_att_b', 'Wc_att_b', 'b_att_b', 'U_att_b', 'c_tt_b'}
+
 
 def set_logging_file(logging_filename):
     path, filename = os.path.split(logging_filename)
@@ -83,8 +88,14 @@ def unzip(zipped):
     return new_params
 
 
-def itemlist(tparams):
+def itemlist(tparams, freeze_word_emb=False, only_word_att=False, gated_att=False):
     """Get the list of parameters: Note that tparams must be OrderedDict"""
+    if freeze_word_emb:
+        return [vv for kk, vv in tparams.iteritems() if kk not in emb_para_names]
+    elif only_word_att and gated_att:
+        return [vv for kk, vv in tparams.iteritems() if kk in word_att_gate_names]
+    elif only_word_att and not gated_att:
+        return [vv for kk, vv in tparams.iteritems() if kk in word_att_names]
     return [vv for kk, vv in tparams.iteritems()]
 
 
@@ -357,14 +368,15 @@ def apply_gradient_clipping(clip_c, grads, clip_shared=None):
         grads = new_grads
     return grads, g2
 
-def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams):
+
+def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams, fix_word_emb=False, only_word_att=False, gated_att=False):
     g2 = 0.
     for g in grads:
         g2 += (g*g).sum()
     not_finite = tensor.or_(tensor.isnan(g2), tensor.isinf(g2))
     if clip_c_shared.get_value() > 0.:
         new_grads = []
-        for g, p in zip(grads, itemlist(mt_tparams)):
+        for g, p in zip(grads, itemlist(mt_tparams, fix_word_emb, only_word_att, gated_att)):
             tmpg = tensor.switch(g2 > (clip_c_shared*clip_c_shared),
                                  g / tensor.sqrt(g2) * clip_c_shared,
                                  g)
@@ -374,9 +386,10 @@ def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams):
     else:
         return grads, tensor.sqrt(g2)
 
-def make_grads_clip_func(grads_shared, mt_tparams, clip_c_shared):
 
-    new_grads, g2_sqrt = clip_grad_remove_nan(grads_shared, clip_c_shared, mt_tparams)
+def make_grads_clip_func(grads_shared, mt_tparams, clip_c_shared, fix_word_emb=False, only_word_att=False, gated_att=False):
+
+    new_grads, g2_sqrt = clip_grad_remove_nan(grads_shared, clip_c_shared, mt_tparams, fix_word_emb, only_word_att, gated_att)
 
     zgup = [(zg, g) for zg, g in zip(grads_shared, new_grads)]
     f_grads_clip = theano.function([], g2_sqrt, updates=zgup, on_unused_input='ignore', profile=profile)

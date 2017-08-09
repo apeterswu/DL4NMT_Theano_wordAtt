@@ -3,6 +3,7 @@ import theano.tensor as tensor
 import numpy
 
 from .utils import itemlist
+from .utils import emb_para_names, word_att_names, word_att_gate_names
 
 profile = False
 
@@ -120,26 +121,70 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
     g2 = kwargs.pop('g2', None)
     given_imm_data = kwargs.pop('given_imm_data', None)
     alpha = kwargs.pop('alpha', 0.95)
+    fix_word_emb = kwargs.pop('fix_word_emd', None)
+    only_word_att = kwargs.pop('only_word_att', None)
+    gated_att = kwargs.pop('gated_att', None)
 
     if g2 is None:
         outputs = cost
     else:
         outputs =[cost, g2]
 
-    zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.),
-                                  name='%s_grad' % k)
-                    for k, p in tparams.iteritems()]
+    if fix_word_emb:
+        zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_grad' % k) for k, p in
+                        tparams.iteritems() if k not in emb_para_names]
+    elif only_word_att and gated_att:
+        zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_grad' % k) for k, p in
+                        tparams.iteritems() if k in word_att_gate_names]
+    elif only_word_att and not gated_att:
+        zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_grad' % k) for k, p in
+                        tparams.iteritems() if k in word_att_names]
+    else:
+        zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_grad' % k) for k, p in
+                        tparams.iteritems()]
 
     if given_imm_data is not None:
-        running_up2 = [theano.shared(value, name='%s_rup2' % k)
-                       for k, value in zip(tparams.iterkeys(), given_imm_data[0])]
-        running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
-                          for k, value in zip(tparams.iterkeys(), given_imm_data[1])]
+        if fix_word_emb:
+            running_up2 = [theano.shared(value, name='%s_rup2' % k)
+                           for k, value in zip(tparams.iterkeys(), given_imm_data[0]) if k not in emb_para_names]
+            running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
+                              for k, value in zip(tparams.iterkeys(), given_imm_data[1]) if k not in emb_para_names]
+        elif only_word_att and gated_att:
+            running_up2 = [theano.shared(value, name='%s_rup2' % k)
+                           for k, value in zip(tparams.iterkeys(), given_imm_data[0]) if k in word_att_gate_names]
+            running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
+                              for k, value in zip(tparams.iterkeys(), given_imm_data[1]) if k in word_att_gate_names]
+        elif only_word_att and not gated_att:
+            running_up2 = [theano.shared(value, name='%s_rup2' % k)
+                           for k, value in zip(tparams.iterkeys(), given_imm_data[0]) if k in word_att_names]
+            running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
+                              for k, value in zip(tparams.iterkeys(), given_imm_data[1]) if k in word_att_names]
+        else:
+            running_up2 = [theano.shared(value, name='%s_rup2' % k)
+                           for k, value in zip(tparams.iterkeys(), given_imm_data[0])]
+            running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
+                              for k, value in zip(tparams.iterkeys(), given_imm_data[1])]
     else:
-        running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
-                       for k, p in tparams.iteritems()]
-        running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
-                          for k, p in tparams.iteritems()]
+        if fix_word_emb:
+            running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
+                           for k, p in tparams.iteritems() if k not in emb_para_names]
+            running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
+                              for k, p in tparams.iteritems() if k not in emb_para_names]
+        elif only_word_att and gated_att:
+            running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
+                           for k, p in tparams.iteritems() if k in word_att_gate_names]
+            running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
+                              for k, p in tparams.iteritems() if k in word_att_gate_names]
+        elif only_word_att and not gated_att:
+            running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
+                           for k, p in tparams.iteritems() if k in word_att_names]
+            running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
+                              for k, p in tparams.iteritems() if k in word_att_names]
+        else:
+            running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
+                           for k, p in tparams.iteritems()]
+            running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
+                              for k, p in tparams.iteritems()]
 
     zgup = [(zg, g) for zg, g in zip(zipped_grads, grads)]
 
