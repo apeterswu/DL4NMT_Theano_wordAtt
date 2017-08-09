@@ -374,14 +374,14 @@ def apply_gradient_clipping(clip_c, grads, clip_shared=None):
     return grads, g2
 
 
-def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams, fix_word_emb=False, only_word_att=False, gated_att=False):
+def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams, freeze_word_emb=False, only_word_att=False, gated_att=False):
     g2 = 0.
     for g in grads:
         g2 += (g*g).sum()
     not_finite = tensor.or_(tensor.isnan(g2), tensor.isinf(g2))
     if clip_c_shared.get_value() > 0.:
         new_grads = []
-        for g, p in zip(grads, itemlist(mt_tparams, fix_word_emb, only_word_att, gated_att)):
+        for g, p in zip(grads, itemlist(mt_tparams, freeze_word_emb, only_word_att, gated_att)):
             tmpg = tensor.switch(g2 > (clip_c_shared*clip_c_shared),
                                  g / tensor.sqrt(g2) * clip_c_shared,
                                  g)
@@ -392,9 +392,9 @@ def clip_grad_remove_nan(grads, clip_c_shared, mt_tparams, fix_word_emb=False, o
         return grads, tensor.sqrt(g2)
 
 
-def make_grads_clip_func(grads_shared, mt_tparams, clip_c_shared, fix_word_emb=False, only_word_att=False, gated_att=False):
+def make_grads_clip_func(grads_shared, mt_tparams, clip_c_shared, freeze_word_emb=False, only_word_att=False, gated_att=False):
 
-    new_grads, g2_sqrt = clip_grad_remove_nan(grads_shared, clip_c_shared, mt_tparams, fix_word_emb, only_word_att, gated_att)
+    new_grads, g2_sqrt = clip_grad_remove_nan(grads_shared, clip_c_shared, mt_tparams, freeze_word_emb, only_word_att, gated_att)
 
     zgup = [(zg, g) for zg, g in zip(grads_shared, new_grads)]
     f_grads_clip = theano.function([], g2_sqrt, updates=zgup, on_unused_input='ignore', profile=profile)

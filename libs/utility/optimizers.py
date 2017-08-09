@@ -121,7 +121,7 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
     g2 = kwargs.pop('g2', None)
     given_imm_data = kwargs.pop('given_imm_data', None)
     alpha = kwargs.pop('alpha', 0.95)
-    fix_word_emb = kwargs.pop('fix_word_emd', None)
+    freeze_word_emb = kwargs.pop('freeze_word_emb', None)
     only_word_att = kwargs.pop('only_word_att', None)
     gated_att = kwargs.pop('gated_att', None)
 
@@ -130,7 +130,7 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
     else:
         outputs =[cost, g2]
 
-    if fix_word_emb:
+    if freeze_word_emb:
         zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_grad' % k) for k, p in
                         tparams.iteritems() if k not in emb_para_names]
     elif only_word_att and gated_att:
@@ -144,7 +144,7 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
                         tparams.iteritems()]
 
     if given_imm_data is not None:
-        if fix_word_emb:
+        if freeze_word_emb:
             running_up2 = [theano.shared(value, name='%s_rup2' % k)
                            for k, value in zip(tparams.iterkeys(), given_imm_data[0]) if k not in emb_para_names]
             running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
@@ -165,7 +165,7 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
             running_grads2 = [theano.shared(value, '%s_rgrad2' % k)
                               for k, value in zip(tparams.iterkeys(), given_imm_data[1])]
     else:
-        if fix_word_emb:
+        if freeze_word_emb:
             running_up2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rup2' % k)
                            for k, p in tparams.iteritems() if k not in emb_para_names]
             running_grads2 = [theano.shared(p.get_value() * numpy.float32(0.), name='%s_rgrad2' % k)
@@ -199,7 +199,7 @@ def adadelta(lr, tparams, grads, inp, cost, **kwargs):
                                      running_grads2)]
     ru2up = [(ru2, alpha * ru2 + (1 - alpha) * (ud ** 2))
              for ru2, ud in zip(running_up2, updir)]
-    param_up = [(p, p + lr * ud) for p, ud in zip(itemlist(tparams, fix_word_emb, only_word_att, gated_att), updir)]
+    param_up = [(p, p + lr * ud) for p, ud in zip(itemlist(tparams, freeze_word_emb, only_word_att, gated_att), updir)]
 
     f_update = theano.function([lr], [], updates=rg2up + ru2up + param_up,
                                on_unused_input='ignore', profile=profile)

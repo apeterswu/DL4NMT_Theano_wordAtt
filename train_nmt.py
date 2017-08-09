@@ -142,8 +142,8 @@ def main():
                         help='Target attention layer id, default is None (not use target attention)')
     parser.add_argument('--fix_dp_bug', action="store_true", default=False, dest='fix_dp_bug',
                         help='Fix previous dropout bug, default to False, set to True')
-    parser.add_argument('--fix_word_emb', action="store_true", default=False, dest='fix_word_emb',
-                        help='Fix word embedding during training.')
+    parser.add_argument('--freeze_word_emb', action="store_true", default=False, dest='freeze_word_emb',
+                        help='Freeze word embedding during training.')
     parser.add_argument('--only_word_att', action="store_true", default=False, dest='only_word_att',
                         help='Only training word attention related params.')
 
@@ -267,7 +267,7 @@ def main():
         cond_unit_size=args.cond_unit_size,
         gated_att=args.gated_att,
 
-        fix_word_emb=args.fix_word_emb,
+        freeze_word_emb=args.freeze_word_emb,
         only_word_att=args.only_word_att,
 
         given_imm=True,
