@@ -65,6 +65,28 @@ def validation(iterator, f_cost):
     return valid_cost / valid_count
 
 
+def visual_test_attention(iterator, f_att):
+    alpha_attention_file = open('alpha_attention_score.txt', 'w')
+    beta_attention_file = open('beta_attention_score.txt', 'w')
+
+    # only one sentence in test_iterator batch
+    for x, y in iterator:
+        x, x_mask, y, y_mask = prepare_data(x, y, maxlen=None)
+        if x is None:
+            continue
+        alpha, beta = f_att(x, x_mask, y, y_mask)
+        alpha_attention_file.write(x[0] + '||' + y[0])
+        beta_attention_file.write(x[0] + '||' + y[0])
+        for i in range(alpha.shape[0]):
+            for j in range(alpha.shape[2]):
+                alpha_attention_file.write(str(alpha[i][0][j]) + ' ')
+                beta_attention_file.write(str(beta[i][0][j]) + ' ')
+            alpha_attention_file.write('\n')
+            beta_attention_file.write('\n')
+    alpha_attention_file.close()
+    beta_attention_file.close()
+
+
 def train(dim_word=100,  # word vector dimensionality
           dim=1000,  # the number of LSTM units
           encoder='gru',
@@ -92,6 +114,8 @@ def train(dim_word=100,  # word vector dimensionality
                           './data/dev/dev_fr.tok'),
           small_train_datasets=('./data/train/small_en-fr.en',
                                 './data/train/small_en-fr.fr'),
+          test_datasets=('./data/test/test_en-fr.en.tok',
+                         './data/test/test_en-fr.fr.tok'),
           use_dropout=False,
           reload_=False,
           overwrite=False,
@@ -128,6 +152,7 @@ def train(dim_word=100,  # word vector dimensionality
 
           freeze_word_emb=False,
           only_word_att=False,
+          visual_att=False,
 
           given_imm=False,
           dump_imm=False,
@@ -228,6 +253,12 @@ Start Time = {}
         valid_batch_size, n_words_src, n_words,
     )
 
+    test_iterator = TextIterator(
+        test_datasets[0], test_datasets[1],
+        vocab_filenames[0], vocab_filenames[1],
+        1, n_words_src, n_words,
+    )
+
     print 'Building model'
     if trg_attention_layer_id is None:
         model = NMTModel(model_options)
@@ -256,7 +287,7 @@ Start Time = {}
     trng, use_noise, \
         x, x_mask, y, y_mask, \
         opt_ret, \
-        cost, test_cost, x_emb = model.build_model()
+        cost, test_cost, x_emb, alpha, beta = model.build_model()
     inps = [x, x_mask, y, y_mask]
 
     print 'Building sampler'
@@ -277,6 +308,10 @@ Start Time = {}
 
     print 'Building f_cost...',
     f_cost = theano.function(inps, test_cost, profile=profile)
+    print 'Done'
+
+    print 'Building f_att...',
+    f_att = theano.function(inps, [alpha, beta], profile=profile)
     print 'Done'
 
     if plot_graph is not None:
@@ -360,6 +395,9 @@ Start Time = {}
 
     start_time = time.time()
     finetune_cnt = 0
+
+    if visual_att:
+        visual_test_attention(test_iterator, f_att)
 
     for eidx in xrange(start_epoch, max_epochs):
         if shuffle_data:

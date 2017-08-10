@@ -146,6 +146,8 @@ def main():
                         help='Freeze word embedding during training.')
     parser.add_argument('--only_word_att', action="store_true", default=False, dest='only_word_att',
                         help='Only training word attention related params.')
+    parser.add_argument('--visual_att', action='store_true', default=False, dest='visual_att',
+                        help='Visualize attention weights.')
 
     args = parser.parse_args()
     print args
@@ -239,6 +241,8 @@ def main():
                         './data/dev/{}'.format(valid3)),
         small_train_datasets=('./data/train/{}'.format(args.small1),
                               './data/train/{}'.format(args.small2)),
+        test_datasets=('./data/test/{}'.format(args.test1),
+                       './data/test/{}'.format(args.test2)),
         vocab_filenames=('./data/dic/{}'.format(args.dic1),
                          './data/dic/{}'.format(args.dic2)),
         task=args.dataset,
@@ -269,6 +273,7 @@ def main():
 
         freeze_word_emb=args.freeze_word_emb,
         only_word_att=args.only_word_att,
+        visual_att=args.visual_att,
 
         given_imm=True,
         dump_imm=True,

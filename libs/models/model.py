@@ -471,7 +471,8 @@ class NMTModel(object):
             # Unused now
             self.x, self.x_mask, self.y, self.y_mask = x, x_mask, y, y_mask
 
-        return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost, test_cost, context_mean
+        return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost, test_cost, context_mean, \
+               opt_ret['dec_alpha'], opt_ret['dec_betas']
 
     def build_context(self, **kwargs):
         """Build function to get encoder context (or encoder gates).
