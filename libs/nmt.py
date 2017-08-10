@@ -398,6 +398,7 @@ Start Time = {}
 
     if visual_att:
         visual_test_attention(test_iterator, f_att)
+        return
 
     for eidx in xrange(start_epoch, max_epochs):
         if shuffle_data:
