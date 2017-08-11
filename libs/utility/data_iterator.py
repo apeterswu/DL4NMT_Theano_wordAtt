@@ -139,9 +139,6 @@ class SequentialTextIterator:
         with open(target_dict, 'rb') as f:
             self.target_dict = pkl.load(f)
 
-        self.source_dict = source_dict
-        self.target_dict = target_dict
-
         self.batch_size = batch_size
         self.maxlen = maxlen
 
