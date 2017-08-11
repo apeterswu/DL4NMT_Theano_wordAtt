@@ -75,8 +75,10 @@ def visual_test_attention(iterator, f_att):
         if x is None:
             continue
         alpha, beta = f_att(x, x_mask, y, y_mask)
-        alpha_attention_file.write(x[0] + '||' + y[0])
-        beta_attention_file.write(x[0] + '||' + y[0])
+        alpha_attention_file.write(x[0])
+        alpha_attention_file.write(y[0])
+        beta_attention_file.write(x[0])
+        beta_attention_file.write(y[0])
         for i in range(alpha.shape[0]):
             for j in range(alpha.shape[2]):
                 alpha_attention_file.write(str(alpha[i][0][j]) + ' ')
