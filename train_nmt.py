@@ -241,8 +241,8 @@ def main():
                         './data/dev/{}'.format(valid3)),
         small_train_datasets=('./data/train/{}'.format(args.small1),
                               './data/train/{}'.format(args.small2)),
-        test_datasets=('./data/test/{}'.format(args.test1),
-                       './data/test/{}'.format(args.test2)),
+        test_datasets=('./data/test/{}'.format(test1),
+                       './data/test/{}'.format(test2)),
         vocab_filenames=('./data/dic/{}'.format(args.dic1),
                          './data/dic/{}'.format(args.dic2)),
         task=args.dataset,
@@ -283,7 +283,7 @@ def main():
         average_context=args.avg_ctx,
 
         dist_type=args.dist_type,
-        dist_recover_lr_iter = args.dist_recover_lr,
+        dist_recover_lr_iter=args.dist_recover_lr,
 
         fine_tune_patience=args.fine_tune_patience,
         nccl= args.nccl,
