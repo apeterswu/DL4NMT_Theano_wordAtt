@@ -131,35 +131,22 @@ class SequentialTextIterator:
                  batch_size=128,
                  n_words_source=-1,
                  n_words_target=-1,
-                 maxlen=100,
-                 use_codecs=False):
-        if use_codecs:
-            import codecs
-            self.source = codecs.open(source, 'r', 'utf-8')
-            self.target = codecs.open(target, 'r', 'utf-8')
-        else:
-            self.source = fopen(source, 'r')
-            self.target = fopen(target, 'r')
-
-        self.source_dict = source_dict
-        self.target_dict = target_dict
-
-        '''
+                 maxlen=10000):
+        self.source = fopen(source, 'r')
+        self.target = fopen(target, 'r')
         with open(source_dict, 'rb') as f:
             self.source_dict = pkl.load(f)
         with open(target_dict, 'rb') as f:
             self.target_dict = pkl.load(f)
-        '''
+
+        self.source_dict = source_dict
+        self.target_dict = target_dict
 
         self.batch_size = batch_size
         self.maxlen = maxlen
 
         self.n_words_source = n_words_source
         self.n_words_target = n_words_target
-
-        # self.source_buffer = []
-        # self.target_buffer = []
-        # self.k = batch_size * 20
 
         self.end_of_data = False
 
