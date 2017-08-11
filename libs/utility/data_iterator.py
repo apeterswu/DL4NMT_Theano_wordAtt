@@ -183,13 +183,13 @@ class SequentialTextIterator:
 
                 ss = ss.strip().split()
                 tt = tt.strip().split()
-                ss = [self.source_dict[w] if w in self.source_dict else 1
+                ss = [self.source_dict.get(w, 1)
                       for w in ss]
                 if self.n_words_source > 0:
                     ss = [w if w < self.n_words_source else 1 for w in ss]
 
                 # read from source file and map to word index
-                tt = [self.target_dict[w] if w in self.target_dict else 1
+                tt = [self.target_dict.get(w, 1)
                       for w in tt]
                 if self.n_words_target > 0:
                     tt = [w if w < self.n_words_target else 1 for w in tt]
