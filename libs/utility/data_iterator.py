@@ -18,7 +18,8 @@ class TextIterator:
                  batch_size=128,
                  n_words_source=-1,
                  n_words_target=-1,
-                 maxlen=1000000):
+                 maxlen=1000000,
+                 k=40):
         self.source = fopen(source, 'r')
         self.target = fopen(target, 'r')
         with open(source_dict, 'rb') as f:
@@ -34,7 +35,7 @@ class TextIterator:
 
         self.source_buffer = []
         self.target_buffer = []
-        self.k = batch_size * 40
+        self.k = batch_size * k
 
         self.end_of_data = False
 
@@ -45,20 +46,14 @@ class TextIterator:
         self.source.seek(0)
         self.target.seek(0)
 
-    def next(self):
-        if self.end_of_data:
-            self.end_of_data = False
-            self.reset()
-            raise StopIteration
+    def _fill_buffer(self):
+        """fill buffer, if it's empty"""
 
-        source = []
-        target = []
-
-        # fill buffer, if it's empty
         assert len(self.source_buffer) == len(self.target_buffer), 'Buffer size mismatch!'
 
         if len(self.source_buffer) == 0:
-            for k_ in xrange(self.k):
+            # for k_ in xrange(self.k):
+            while len(self.source_buffer) < self.k:
                 ss = self.source.readline()
                 if ss == "":
                     break
@@ -66,8 +61,13 @@ class TextIterator:
                 if tt == "":
                     break
 
-                self.source_buffer.append(ss.strip().split())
-                self.target_buffer.append(tt.strip().split())
+                ss = ss.strip().split()
+                tt = tt.strip().split()
+                if len(ss) > self.maxlen or len(tt) > self.maxlen:
+                    continue
+
+                self.source_buffer.append(ss)
+                self.target_buffer.append(tt)
 
             # sort by target buffer
             tlen = numpy.array([len(t) for t in self.target_buffer])
@@ -84,6 +84,17 @@ class TextIterator:
             self.reset()
             raise StopIteration
 
+    def next(self):
+        if self.end_of_data:
+            self.end_of_data = False
+            self.reset()
+            raise StopIteration
+
+        source = []
+        target = []
+
+        self._fill_buffer()
+
         try:
             # actual work here
             while True:
@@ -91,7 +102,11 @@ class TextIterator:
                 try:
                     ss = self.source_buffer.pop()
                 except IndexError:
-                    break
+                    if len(source) <= 0 or len(target) <= 0:
+                        self._fill_buffer()
+                        ss = self.source_buffer.pop()
+                    else:
+                        break
                 ss = [self.source_dict.get(w, 1)
                       for w in ss]
                 if self.n_words_source > 0:
@@ -105,7 +120,7 @@ class TextIterator:
                     tt = [w if w < self.n_words_target else 1 for w in tt]
 
                 if len(ss) > self.maxlen or len(tt) > self.maxlen:
-                    continue
+                    continue  # should be useless now
 
                 source.append(ss)
                 target.append(tt)

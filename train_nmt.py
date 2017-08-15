@@ -148,6 +148,8 @@ def main():
                         help='Only training word attention related params.')
     parser.add_argument('--visual_att', action='store_true', default=False, dest='visual_att',
                         help='Visualize attention weights.')
+    parser.add_argument('--reader_buffer_size', action='store', default=40, type=int, dest='buffer_size',
+                        help='The buffer size in data reader, default to 40')
 
     args = parser.parse_args()
     print args
@@ -286,13 +288,14 @@ def main():
         dist_recover_lr_iter=args.dist_recover_lr,
 
         fine_tune_patience=args.fine_tune_patience,
-        nccl= args.nccl,
+        nccl=args.nccl,
         src_vocab_map_file= args.src_vocab_map_file,
         tgt_vocab_map_file= args.tgt_vocab_map_file,
 
         trg_attention_layer_id=args.trg_attention_layer_id,
         dev_bleu_freq=args.dev_bleu_freq,
         fix_dp_bug=args.fix_dp_bug,
+        io_buffer_size=args.buffer_size,
     )
 
 
