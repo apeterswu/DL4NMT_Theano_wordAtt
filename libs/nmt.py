@@ -155,7 +155,6 @@ def train(dim_word=100,  # word vector dimensionality
           freeze_word_emb=False,
           only_word_att=False,
           visual_att=False,
-          text_sum=False,
 
           given_imm=False,
           dump_imm=False,
@@ -524,53 +523,29 @@ Start Time = {}
 
                 # Fine-tune based on dev bleu
                 if fine_tune_patience > 0:
-                    if text_sum:   # text summarization fine tune by valid cost
-                        if valid_cost < best_valid_cost:
-                            bad_counter = 0
-                            best_valid_cost = valid_cost
+                    if valid_bleu > best_bleu:
+                        bad_counter = 0
+                        best_bleu = valid_bleu
+                        # dump the best model so far, including the immediate file
                         if worker_id == 0:
-                            message('Dump the best model so for at uidx {}'.format(uidx))
+                            message('Dump the the best model so far at uidx {}'.format(uidx))
                             model.save_model(saveto, history_errs)
                             dump_adadelta_imm_data(optimizer, imm_shared, dump_imm, saveto)
-                        else:
-                            bad_counter += 1
-                            if bad_counter >= fine_tune_patience:
-                                print 'Fine tune:'
-                                if finetune_cnt % 2 == 0:
-                                    lrate = np.float32(lrate * 0.1)
-                                    message('Discount learning rate to {} at iteration {}'.format(lrate, uidx))
-                                    # if lrate <= 0.025:
-                                    #     message('Learning rate decayed to {:.5f}, task completed'.format(lrate))
-                                    #     return 1., 1., 1.
-                                else:
-                                    clip_shared.set_value(np.float32(clip_shared.get_value() * 0.25))
-                                    message('Discount clip value to {} at iteration {}'.format(clip_shared.get_value(), uidx))
-                                finetune_cnt += 1
-                                bad_counter = 0
-                    else:   # nmt fine tune by bleu score
-                        if valid_bleu > best_bleu:
+                    else:
+                        bad_counter += 1
+                        if bad_counter >= fine_tune_patience:
+                            print 'Fine tune:',
+                            if finetune_cnt % 2 == 0:
+                                lrate = np.float32(lrate * 0.5)
+                                message('Discount learning rate to {} at iteration {}'.format(lrate, uidx))
+                                # if lrate <= 0.025:
+                                #     message('Learning rate decayed to {:.5f}, task completed'.format(lrate))
+                                #     return 1., 1., 1.
+                            else:
+                                clip_shared.set_value(np.float32(clip_shared.get_value() * 0.25))
+                                message('Discount clip value to {} at iteration {}'.format(clip_shared.get_value(), uidx))
+                            finetune_cnt += 1
                             bad_counter = 0
-                            best_bleu = valid_bleu
-                            # dump the best model so far, including the immediate file
-                            if worker_id == 0:
-                                message('Dump the the best model so far at uidx {}'.format(uidx))
-                                model.save_model(saveto, history_errs)
-                                dump_adadelta_imm_data(optimizer, imm_shared, dump_imm, saveto)
-                        else:
-                            bad_counter += 1
-                            if bad_counter >= fine_tune_patience:
-                                print 'Fine tune:',
-                                if finetune_cnt % 2 == 0:
-                                    lrate = np.float32(lrate * 0.5)
-                                    message('Discount learning rate to {} at iteration {}'.format(lrate, uidx))
-                                    # if lrate <= 0.025:
-                                    #     message('Learning rate decayed to {:.5f}, task completed'.format(lrate))
-                                    #     return 1., 1., 1.
-                                else:
-                                    clip_shared.set_value(np.float32(clip_shared.get_value() * 0.25))
-                                    message('Discount clip value to {} at iteration {}'.format(clip_shared.get_value(), uidx))
-                                finetune_cnt += 1
-                                bad_counter = 0
 
             # finish after this many updates
             if uidx >= finish_after:

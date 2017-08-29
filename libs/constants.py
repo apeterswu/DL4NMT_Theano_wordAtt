@@ -166,12 +166,4 @@ Datasets = {
         '', '',
         'tc_zh-en.1.25M.zh.pkl', 'tc_zh-en.1.25M.en.pkl',
     ],
-
-    'Giga': [
-        'train.article.txt', 'train.title.txt',
-        'small_train.article.txt', 'small_train.title.txt',
-        'small_valid.article.filter.txt', 'small_valid.title.filter.txt', 'small_valid.title.filter.txt',
-        'test.article.txt', 'test.title.txt',
-        'train.article.dict.pkl', 'train.title.dict.pkl',
-    ],
 }
