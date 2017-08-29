@@ -148,6 +148,8 @@ def main():
                         help='Only training word attention related params.')
     parser.add_argument('--visual_att', action='store_true', default=False, dest='visual_att',
                         help='Visualize attention weights.')
+    parser.add_argument('--text_sum', action='store_true', default=False, dest='text_sum',
+                        help='Train text summarization model.')
     parser.add_argument('--reader_buffer_size', action='store', default=40, type=int, dest='buffer_size',
                         help='The buffer size in data reader, default to 40')
 
@@ -276,6 +278,7 @@ def main():
         freeze_word_emb=args.freeze_word_emb,
         only_word_att=args.only_word_att,
         visual_att=args.visual_att,
+        text_sum=args.text_sum,
 
         given_imm=True,
         dump_imm=True,

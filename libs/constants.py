@@ -136,15 +136,15 @@ Datasets = {
        'de-en_vocab.en.pkl', 'de-en_vocab.de.pkl',
     ],
 
-    'de-en_bpe':[
-       'train.de-en.bpe.25000.de', 'train.de-en.bpe.25000.en',
+    'de-en_bpe': [
+        'train.de-en.bpe.25000.de', 'train.de-en.bpe.25000.en',
         'small_train.de-en.bpe.25000.de', 'small_train.de-en.bpe.25000.en',
         'dev.de-en.bpe.25000.de', 'dev.de-en.bpe.25000.en','dev.de-en.en',
         'test.de-en.bpe.25000.de', 'test.de-en.en',
         'de-en_vocab.bpe.25000.pkl', 'de-en_vocab.bpe.25000.pkl',
     ],
 
-    'en-de_small_bpe' :[
+    'en-de_small_bpe' : [
        'train.de-en.bpe.25000.en', 'train.de-en.bpe.25000.de',
        'small_train.de-en.bpe.25000.en', 'small_train.de-en.bpe.25000.de',
        'dev.de-en.bpe.25000.en', 'dev.de-en.bpe.25000.de', 'dev.de-en.de',
@@ -165,5 +165,13 @@ Datasets = {
         'tc_Nist2003.chs.word.max50.snt', 'tc_Nist2003.enu.word.max50.snt', '',
         '', '',
         'tc_zh-en.1.25M.zh.pkl', 'tc_zh-en.1.25M.en.pkl',
+    ],
+
+    'Giga': [
+        'train.article.txt', 'train.title.txt',
+        'small_train.article.txt', 'small_train.title.txt',
+        'valid.article.filter.txt', 'valid.title.filter.txt', 'valid.title.filter.txt',
+        'test.article.txt', 'test.title.txt',
+        'train.article.dict.pkl', 'train.title.dict.pkl',
     ],
 }
