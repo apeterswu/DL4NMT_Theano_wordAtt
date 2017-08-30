@@ -400,7 +400,7 @@ class NMTModel(object):
         tgt_embedding = emb_shifted
 
         # Decoder - pass through the decoder conditional gru with attention
-        hidden_decoder, context_decoder, _, _ = self.decoder(
+        hidden_decoder, context_decoder, _, _, = self.decoder(
             tgt_embedding, y_mask, init_decoder_state, context, x_mask,
             dropout_params=None,
         )
@@ -447,7 +447,7 @@ class NMTModel(object):
 
         # Decoder - pass through the decoder conditional gru with attention
         hidden_decoder, context_decoder, word_context_decoder, \
-        opt_ret['dec_alphas'], opt_ret['dec_betas'], _ = self.decoder(
+        opt_ret['dec_alphas'], opt_ret['dec_betas'], attention_gate, _ = self.decoder(
             tgt_embedding, y_mask=y_mask, init_state=init_decoder_state, context=context, word_context=word_context,
             x_mask=x_mask, dropout_params=dropout_params, one_step=False,
         )
@@ -472,7 +472,7 @@ class NMTModel(object):
             self.x, self.x_mask, self.y, self.y_mask = x, x_mask, y, y_mask
 
         return trng, use_noise, x, x_mask, y, y_mask, opt_ret, cost, test_cost, context_mean, \
-               opt_ret['dec_alphas'], opt_ret['dec_betas']
+               opt_ret['dec_alphas'], opt_ret['dec_betas'], attention_gate
 
     def build_context(self, **kwargs):
         """Build function to get encoder context (or encoder gates).
@@ -601,7 +601,7 @@ class NMTModel(object):
                        self.P['Wemb_dec'][y])
 
         # Apply one step of conditional gru with attention
-        hidden_decoder, context_decoder, word_context_decoder, _, _, kw_ret = self.decoder(
+        hidden_decoder, context_decoder, word_context_decoder, _, _, _, kw_ret = self.decoder(
             emb, y_mask=None, init_state=init_state, context=ctx, word_context=word_ctx,
             x_mask=x_mask if batch_mode else None,
             dropout_params=dropout_params, one_step=True, init_memory=init_memory,
@@ -1356,7 +1356,7 @@ class NMTModel(object):
 
                 outputs.append(layer_out[0])
 
-            return outputs[-1], context_decoder, word_context_decoder, alpha_decoder, beta_decoder, kw_ret
+            return outputs[-1], context_decoder, word_context_decoder, alpha_decoder, beta_decoder, attention_gate, kw_ret
 
     def output_gate(self, hidden_decoder, context_decoder, word_context_decoder, tgt_embedding, prefix='out_gate'):
         out_gate = T.nnet.sigmoid(T.dot(tgt_embedding, self.P[_p(prefix, 'W')]) +

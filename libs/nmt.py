@@ -65,9 +65,10 @@ def validation(iterator, f_cost):
     return valid_cost / valid_count
 
 
-def visual_test_attention(iterator, f_att):
+def visual_test_attention(iterator, f_att, f_att_gate):
     alpha_attention_file = open('alpha_attention_score.txt', 'w')
     beta_attention_file = open('beta_attention_score.txt', 'w')
+    gated_attention_file = open('gated_attention_score.txt', 'w')
 
     # only one sentence in test_iterator batch
     for seq_x, seq_y, origin_seqx, origin_seqy in iterator:
@@ -75,18 +76,45 @@ def visual_test_attention(iterator, f_att):
         if x is None:
             continue
         alpha, beta = f_att(x, x_mask, y, y_mask)
+        average_attention_gate = f_att(x, x_mask, y, y_mask)
         alpha_attention_file.write(origin_seqx[0])
         alpha_attention_file.write(origin_seqy[0])
         beta_attention_file.write(origin_seqx[0])
         beta_attention_file.write(origin_seqy[0])
+        gated_attention_file.write(origin_seqx[0])
+        gated_attention_file.write(origin_seqy[0])
+        # [target_sen * batch * source_sen]
         for i in range(alpha.shape[0]):
             for j in range(alpha.shape[2]):
                 alpha_attention_file.write(str(alpha[i][0][j]) + ' ')
                 beta_attention_file.write(str(beta[i][0][j]) + ' ')
+                gated_attention = alpha[i][0][j] * average_attention_gate[i][0] + beta[i][0][j] * \
+                                                                                  (1 - average_attention_gate[i][0])
+                gated_attention_file.write(str(gated_attention) + ' ')
             alpha_attention_file.write('\n')
             beta_attention_file.write('\n')
+            gated_attention_file.write('\n')
     alpha_attention_file.close()
     beta_attention_file.close()
+    gated_attention_file.close()
+
+
+def visual_test_attention_gate(iterator, f_att_gate):
+    attention_gate_file = open('attention_gate_score.txt', 'w')
+
+    # only one sentence in test_iterator batch
+    for seq_x, seq_y, origin_seqx, origin_seqy in iterator:
+        x, x_mask, y, y_mask = prepare_data(seq_x, seq_y, maxlen=None)
+        if x is None:
+            continue
+        average_attention_gate = f_att_gate(x, x_mask, y, y_mask)
+        attention_gate_file.write(origin_seqx[0])
+        attention_gate_file.write(origin_seqy[0])
+        # [target_sen * batch * dim] ->(average) [target_sen * batch]
+        for i in range(average_attention_gate.shape[0]):
+            attention_gate_file.write(str(average_attention_gate[i][0]) + ' ')
+        attention_gate_file.write('\n')
+    attention_gate_file.close()
 
 
 def train(dim_word=100,  # word vector dimensionality
@@ -155,6 +183,7 @@ def train(dim_word=100,  # word vector dimensionality
           freeze_word_emb=False,
           only_word_att=False,
           visual_att=False,
+          visual_att_gate=False,
 
           given_imm=False,
           dump_imm=False,
@@ -290,7 +319,7 @@ Start Time = {}
     trng, use_noise, \
         x, x_mask, y, y_mask, \
         opt_ret, \
-        cost, test_cost, x_emb, alpha, beta = model.build_model()
+        cost, test_cost, x_emb, alpha, beta, attention_gate = model.build_model()   # return attention and gate.
     inps = [x, x_mask, y, y_mask]
 
     print 'Building sampler'
@@ -315,6 +344,11 @@ Start Time = {}
 
     print 'Building f_att...',
     f_att = theano.function(inps, [alpha, beta], profile=profile)
+    print 'Done'
+
+    print 'Building f_att_gate...',
+    average_attention_gate = tensor.mean(attention_gate, axis=-1)  # average the attention along the dimension
+    f_att_gate = theano.function(inps, average_attention_gate, profile=profile)
     print 'Done'
 
     if plot_graph is not None:
@@ -348,7 +382,7 @@ Start Time = {}
     print 'Done'
 
     if dist_type == 'mpi_reduce':
-        f_grads_clip = make_grads_clip_func(grads_shared = grads_shared, mt_tparams=model.P, clip_c_shared=clip_shared,
+        f_grads_clip = make_grads_clip_func(grads_shared=grads_shared, mt_tparams=model.P, clip_c_shared=clip_shared,
                                             freeze_word_emb=freeze_word_emb, only_word_att=only_word_att, gated_att=gated_att)
 
     print 'Optimization'
@@ -400,7 +434,10 @@ Start Time = {}
     finetune_cnt = 0
 
     if visual_att:
-        visual_test_attention(test_iterator, f_att)
+        visual_test_attention(test_iterator, f_att, f_att_gate)
+        return
+    if visual_att_gate:
+        visual_test_attention_gate(test_iterator, f_att_gate)
         return
 
     for eidx in xrange(start_epoch, max_epochs):
