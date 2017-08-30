@@ -76,7 +76,7 @@ def visual_test_attention(iterator, f_att, f_att_gate):
         if x is None:
             continue
         alpha, beta = f_att(x, x_mask, y, y_mask)
-        average_attention_gate = f_att(x, x_mask, y, y_mask)
+        average_attention_gate = f_att_gate(x, x_mask, y, y_mask)
         alpha_attention_file.write(origin_seqx[0])
         alpha_attention_file.write(origin_seqy[0])
         beta_attention_file.write(origin_seqx[0])
