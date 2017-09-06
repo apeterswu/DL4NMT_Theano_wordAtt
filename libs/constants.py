@@ -152,6 +152,14 @@ Datasets = {
        'de-en_vocab.bpe.25000.pkl', 'de-en_vocab.bpe.25000.pkl',
     ],
 
+    'Giga': [
+        'train.article.txt', 'train.title.txt',
+        'small_train.article.txt', 'small_train.title.txt',
+        'valid.article.filter.txt', 'valid.title.filter.txt', 'valid.title.filter.txt',
+        'test.article.txt', 'test.title.txt',
+        'train.article.dict.pkl', 'train.title.dict.pkl',
+    ],
+
     'zh-en': [
         'zh-en.1.25M.zh', 'zh-en.1.25M.en',
         'small_zh-en.1.25M.zh', 'small_zh-en.1.25M.en',

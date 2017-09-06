@@ -150,6 +150,8 @@ def main():
                         help='Visualize attention weights.')
     parser.add_argument('--visual_att_gate', action='store_true', default=False, dest='visual_att_gate',
                         help='Visualize average attention gate values.')
+    parser.add_argument('--ft_by_cost', action='store_true', default=False, dest='ft_by_cost',
+                        help='Fine tune by valid cost set.')
     parser.add_argument('--reader_buffer_size', action='store', default=40, type=int, dest='buffer_size',
                         help='The buffer size in data reader, default to 40')
 
@@ -279,6 +281,7 @@ def main():
         only_word_att=args.only_word_att,
         visual_att=args.visual_att,
         visual_att_gate=args.visual_att_gate,
+        ft_by_cost=args.ft_by_cost,
 
         given_imm=True,
         dump_imm=True,
