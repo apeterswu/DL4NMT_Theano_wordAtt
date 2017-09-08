@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('model_prefix', help='model file prefix.')
 parser.add_argument('start', type=int, help='start iteration number.')
 parser.add_argument('end', type=int, help='end iteration number')
-parser.add_argument('gap', tyep=int, default=10000, help='the gap between each saved model.')
+parser.add_argument('gap', type=int, default=10000, help='the gap between each saved model.')
 
 args = parser.parse_args()
 
