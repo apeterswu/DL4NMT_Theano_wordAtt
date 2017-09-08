@@ -199,6 +199,7 @@ def all_reduce_params_nccl(nccl_commu, sent_shared_params):
 
     return commu_time, gpu2gpu_cp_time
 
+
 def init_nccl_env(mpi_comm):
     from pygpu import collectives as gpucoll
     from theano import gpuarray as theanoga
@@ -217,6 +218,7 @@ def init_nccl_env(mpi_comm):
     print('Init pygpu OK, rank %d' % mpi_rank)
     sys.stdout.flush()
     return comm
+
 
 def load_params(path, params, src_map_file = None, tgt_map_file = None):
     """Load parameters
@@ -249,6 +251,7 @@ def load_embedding(params, embedding_model_file, emb_keys=('Wemb', 'Wemb_dec')):
 
     return params
 
+
 def load_word_params(params, old_params, src_map, tgt_map):
     UNK_ID = 1
 
@@ -278,6 +281,7 @@ def load_word_params(params, old_params, src_map, tgt_map):
 
     print('\nLoad previous word related params done')
     return params
+
 
 # some utilities
 def orthogonal_weight(ndim):
