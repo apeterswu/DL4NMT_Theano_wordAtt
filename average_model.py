@@ -60,7 +60,7 @@ for idx in xrange(args.start + 1, args.end + 1):
         params[key] += value
     print('add one model values.')
 for key in params.keys():
-    params[key] /= (num_of_model * 1.0)
+    params[key] /= num_of_model
 
 model.init_tparams(params)
 
