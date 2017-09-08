@@ -65,7 +65,7 @@ for key in params.keys():
 model.init_tparams(params)
 
 print('Save the averaged model. The uidx = 0...')
-model.save_model(args.model_prefix, None, 0)
+model.save_model(args.model_prefix, history_errs=[], uidx=123)
 print('Done')
 sys.stdout.flush()
 
