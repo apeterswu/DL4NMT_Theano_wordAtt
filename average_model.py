@@ -36,12 +36,23 @@ with open(option_file, 'rb') as f:
     if 'fix_dp_bug' not in options:
         options['fix_dp_bug'] = False
 
-    pprint(options)
+    # pprint(options)
 
 model = NMTModel(options)
-params = model.initializer.init_params()
 
-for idx in xrange(args.start, args.end + 1):
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+trng = RandomStreams(1234)
+use_noise = theano.shared(np.float32(0.))
+
+print('initialize the model.')
+params = model.initializer.init_params()
+print('Done')
+trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], args.start * args.gap)
+old_params = np.load(trans_model_file)
+for key, value in old_params.iteritems():
+    params[key] = old_params[key]
+
+for idx in xrange(args.start + 1, args.end + 1):
     print('load model file.')
     trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], idx * args.gap)
     old_params = np.load(trans_model_file)
