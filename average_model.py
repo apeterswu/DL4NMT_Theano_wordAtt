@@ -42,10 +42,12 @@ model = NMTModel(options)
 params = model.initializer.init_params()
 
 for idx in xrange(args.start, args.end + 1):
+    print('load model file.')
     trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], idx * args.gap)
     old_params = np.load(trans_model_file)
     for key, value in old_params.iteritems():
         params[key] += value
+    print('add one model values.')
 for key in params.keys():
     params[key] /= (num_of_model * 1.0)
 
