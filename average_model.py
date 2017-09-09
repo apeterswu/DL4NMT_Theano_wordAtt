@@ -8,11 +8,13 @@ import errno
 import random
 import gzip
 import sys
-import time
+import warnings
+import os
 
 import theano
 import theano.tensor as tensor
-from libs.models.model import *
+from libs.models import NMTModel
+from libs.utility.utils import *
 import numpy as np
 from libs.config import DefaultOptions
 from libs.models import build_and_init_model
@@ -50,17 +52,26 @@ print('Done')
 trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], args.start * args.gap)
 old_params = np.load(trans_model_file)
 for key, value in old_params.iteritems():
-    params[key] = old_params[key]
+    if key not in old_params:
+        warnings.warn('{} is not in the archive'.format(key))
+        continue
+    if params[key].shape == old_params[key].shape:
+        params[key] = old_params[key]
 
 for idx in xrange(args.start + 1, args.end + 1):
     print('load model file.')
     trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], idx * args.gap)
     old_params = np.load(trans_model_file)
     for key, value in old_params.iteritems():
-        params[key] += value
+        if key not in old_params:
+            warnings.warn('{} is not in the archive'.format(key))
+            continue
+        if params[key].shape == old_params[key].shape:
+            params[key] += old_params[key]
     print('add one model values.')
-for key in params.keys():
-    params[key] /= num_of_model
+for key, value in params.iteritems():
+    params[key] = value / num_of_model
+sys.stdout.flush()
 
 model.init_tparams(params)
 history = []
