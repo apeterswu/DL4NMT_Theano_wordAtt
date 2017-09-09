@@ -51,7 +51,7 @@ params = model.initializer.init_params()
 print('Done')
 trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], args.start * args.gap)
 old_params = np.load(trans_model_file)
-for key, value in old_params.iteritems():
+for key, value in params.iteritems():
     if key not in old_params:
         warnings.warn('{} is not in the archive'.format(key))
         continue
@@ -62,7 +62,7 @@ for idx in xrange(args.start + 1, args.end + 1):
     print('load model file.')
     trans_model_file = '%s.iter%d.npz' % (os.path.splitext(args.model_prefix)[0], idx * args.gap)
     old_params = np.load(trans_model_file)
-    for key, value in old_params.iteritems():
+    for key, value in params.iteritems():
         if key not in old_params:
             warnings.warn('{} is not in the archive'.format(key))
             continue
