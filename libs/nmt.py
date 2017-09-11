@@ -347,10 +347,11 @@ Start Time = {}
     f_att = theano.function(inps, [alpha, beta], profile=profile)
     print 'Done'
 
-    print 'Building f_att_gate...',
-    average_attention_gate = tensor.mean(attention_gate, axis=-1)  # average the attention along the dimension
-    f_att_gate = theano.function(inps, average_attention_gate, profile=profile)
-    print 'Done'
+    if gated_att:  # only for gated attention
+        print 'Building f_att_gate...',
+        average_attention_gate = tensor.mean(attention_gate, axis=-1)  # average the attention along the dimension
+        f_att_gate = theano.function(inps, average_attention_gate, profile=profile)
+        print 'Done'
 
     if plot_graph is not None:
         print 'Plotting post-compile graph...',
