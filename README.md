@@ -2,7 +2,7 @@
 
 AAAI2018:
 ``
-@inproceedings{wu2018word,
+@inproceedings{wu2018word, \\
   title={Word attention for sequence to sequence text understanding},
   author={Wu, Lijun and Tian, Fei and Zhao, Li and Lai, Jianhuang and Liu, Tie-Yan},
   booktitle={Thirty-Second AAAI Conference on Artificial Intelligence},
