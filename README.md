@@ -50,7 +50,6 @@ dataset由`--dataset` option控制，所有dataset见`constants.py`。
 
 dataset由training data，small training data，validation data，dictionary组成。
 
-目前有些truecase版本的dataset还不全，需要补充。
 
 ### 对dataset进行Truecase转换
 
@@ -70,16 +69,7 @@ BPE test脚本在Windows上需要用bash运行，gdw135和gdw144均安装了bash
 
 脚本用法可见脚本里面的Usage行。
 
-
-Linux server脚本默认model path为/datadrive/v-yanfa/model/complete。
-
-Windows server脚本默认model path为//gcr/Scratch/RR1/v-yanfa/SelectiveTrain/model/complete。
-
-
-zh-en的test方法需要问lijun。
-
-truecase的test脚本暂时还没有，根据[这里](http://www.statmt.org/moses/?n=Moses.SupportTools#ntoc11)，
-应该在运行`perl multi-bleu.perl`之前运行`perl detruecase.perl < translated_file > output`。
+truecase的test应该在运行`perl multi-bleu.perl`之前运行`perl detruecase.perl < translated_file > output`。
 
 
 ## NOTES
