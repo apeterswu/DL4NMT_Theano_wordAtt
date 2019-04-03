@@ -22,7 +22,7 @@ cd Lasagne
 pip install .
 cd ../DL4NMT_Theano_wordAtt
 mkdir -p log/complete translated/complete model/complete
- copy data from other nodes to here...
+#copy data from other nodes to here...
 ```
 
 **NOTE**：在node（包括GCR）上跑job之前，请确保code是最新的，在Project根目录下运行`git pull`。
@@ -33,7 +33,6 @@ Run `train_nmt.py`.
 
 See `train_nmt.py -h` for help.
 
-用于交GCR job的脚本见OneNote:/AMD Notebook/Yang Fan/Jobs (Complete, with Fei & Yingce) 里面的几个脚本。
 
 **NOTE**：由于shuffle data per epoch的存在，当一个job使用的dataset没有shuffle版本（下标为0,1,2,...）时，会立即创建一个。
 因此**不要**同时交两个dataset没有shuffle版本的job，防止冲突。等一个把下标为0的shuffle版本创建出来之后再交另外的。
